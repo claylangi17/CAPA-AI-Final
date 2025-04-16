@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}New CAPA Issue{% endblock %}
+
+{% block content %}
+  <h2>Submit New CAPA Issue</h2>
+  <hr>
+  <form method="POST" action="{{ url_for('new_capa') }}" enctype="multipart/form-data">
+    <div class="mb-3">
+      <label for="customer_name" class="form-label">Customer Name</label>
+      <input type="text" class="form-control" id="customer_name" name="customer_name" required>
+    </div>
+    <div class="mb-3">
+      <label for="item_involved" class="form-label">Item Involved</label>
+      <input type="text" class="form-control" id="item_involved" name="item_involved" required>
+    </div>
+     <div class="mb-3">
+      <label for="issue_date" class="form-label">Issue Date</label>
+      <input type="date" class="form-control" id="issue_date" name="issue_date" required>
+    </div>
+    <div class="mb-3">
+      <label for="issue_description" class="form-label">Issue Description</label>
+      <textarea class="form-control" id="issue_description" name="issue_description" rows="5" required></textarea>
+    </div>
+    <div class="mb-3">
+      <label for="initial_photo" class="form-label">Initial Issue Photo (Optional)</label>
+      <input class="form-control" type="file" id="initial_photo" name="initial_photo" accept="image/*">
+    </div>
+    <button type="submit" class="btn btn-primary">Submit Issue</button>
+    <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancel</a>
+  </form>
+{% endblock %}

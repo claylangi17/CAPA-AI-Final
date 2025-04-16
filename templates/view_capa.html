@@ -1,0 +1,612 @@
+{% extends "base.html" %}
+
+{% block title %}Lihat CAPA #{{ issue.capa_id }}{% endblock %}
+
+{% block content %}
+  <style>
+    /* CSS untuk tampilan Root Cause Analysis */
+    .rca-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    
+    .rca-step {
+      display: flex;
+      align-items: flex-start;
+      margin-bottom: 5px;
+    }
+    
+    .rca-step-number {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background-color: #0d6efd;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      margin-right: 15px;
+      flex-shrink: 0;
+    }
+    
+    .rca-step-content {
+      flex-grow: 1;
+    }
+    
+    .rca-step-content h6 {
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    
+    .rca-step-content p {
+      margin-bottom: 0;
+    }
+    
+    .rca-step:last-child .rca-step-number {
+      background-color: #dc3545;
+    }
+  </style>
+  <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3">
+    <h2 class="mb-0">Masalah CAPA #{{ issue.capa_id }} - {{ issue.status }}</h2>
+     <div class="btn-toolbar mb-2 mb-md-0">
+       <a href="{{ url_for('generate_pdf_report', capa_id=issue.capa_id) }}" class="btn btn-sm btn-outline-danger" target="_blank">
+         Buat Laporan PDF
+       </a>
+     </div>
+  </div>
+  <hr class="mt-0">
+
+  <div class="row">
+    <div class="col-md-8">
+      <h4>Detail Masalah</h4>
+      <dl class="row">
+        <dt class="col-sm-3">Pelanggan:</dt>
+        <dd class="col-sm-9">{{ issue.customer_name }}</dd>
+
+        <dt class="col-sm-3">Item Terkait:</dt>
+        <dd class="col-sm-9">{{ issue.item_involved }}</dd>
+
+        <dt class="col-sm-3">Tanggal Masalah:</dt>
+        <dd class="col-sm-9">{{ issue.issue_date.strftime('%Y-%m-%d') }}</dd>
+
+        <dt class="col-sm-3">Deskripsi:</dt>
+        <dd class="col-sm-9">{{ issue.issue_description | nl2br }}</dd> {# Use nl2br filter for newlines #}
+
+        <dt class="col-sm-3">Diajukan:</dt>
+        <dd class="col-sm-9">{{ issue.submission_timestamp.strftime('%Y-%m-%d %H:%M') }}</dd>
+
+        <dt class="col-sm-3">Status:</dt>
+        <dd class="col-sm-9"><span class="badge bg-info text-dark">{{ issue.status }}</span></dd>
+      </dl>
+    </div>
+    <div class="col-md-4">
+      <h4>Foto Awal</h4>
+      {% if issue.initial_photo_path %}
+        <img src="{{ url_for('uploaded_file', filename=issue.initial_photo_path) }}" class="img-fluid" alt="Foto Awal Masalah">
+      {% else %}
+        <p>Tidak ada foto awal yang diunggah.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <hr>
+
+  <h4>Analisis Akar Masalah (5 Why)</h4>
+  {% if issue.root_cause and issue.root_cause.ai_suggested_rc_json %}
+    {% set rca_data = issue.root_cause.ai_suggested_rc_json | fromjson %} {# Use fromjson filter #}
+    <form method="POST" action="{{ url_for('edit_rca', capa_id=issue.capa_id) }}">
+      <div class="mb-3 p-3 border rounded bg-light">
+        <h5>Saran AI:</h5>
+        {% if rca_data.error %}
+          <p class="text-danger"><strong>Error memproses saran AI:</strong> {{ rca_data.error }}</p>
+          <pre><code>{{ rca_data.raw_response }}</code></pre>
+        {% else %}
+          <div class="card">
+            <div class="card-body">
+              <div class="rca-steps">
+                <div class="rca-step">
+                  <span class="rca-step-number">1</span>
+                  <div class="rca-step-content">
+                    <h6>Mengapa 1:</h6>
+                    <p>{{ rca_data.get('why1', 'N/A') }}</p>
+                  </div>
+                </div>
+                <div class="rca-step">
+                  <span class="rca-step-number">2</span>
+                  <div class="rca-step-content">
+                    <h6>Mengapa 2:</h6>
+                    <p>{{ rca_data.get('why2', 'N/A') }}</p>
+                  </div>
+                </div>
+                <div class="rca-step">
+                  <span class="rca-step-number">3</span>
+                  <div class="rca-step-content">
+                    <h6>Mengapa 3:</h6>
+                    <p>{{ rca_data.get('why3', 'N/A') }}</p>
+                  </div>
+                </div>
+                <div class="rca-step">
+                  <span class="rca-step-number">4</span>
+                  <div class="rca-step-content">
+                    <h6>Mengapa 4:</h6>
+                    <p>{{ rca_data.get('why4', 'N/A') }}</p>
+                  </div>
+                </div>
+                <div class="rca-step">
+                  <span class="rca-step-number">5</span>
+                  <div class="rca-step-content">
+                    <h6>Akar Masalah (Mengapa 5):</h6>
+                    <p>{{ rca_data.get('root_cause', 'N/A') }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+
+      <h5>Penyesuaian Akar Masalah:</h5>
+      <p class="text-muted">Tinjau saran AI di atas dan sesuaikan 5 Whys di bawah ini berdasarkan investigasi Anda.</p>
+
+      <div class="mb-3">
+        <label for="user_adjusted_why1" class="form-label">Mengapa 1:</label>
+        <textarea class="form-control" id="user_adjusted_why1" name="user_adjusted_why1" rows="2" required>{{ issue.root_cause.user_adjusted_why1 or rca_data.get('why1', '') }}</textarea>
+      </div>
+      <div class="mb-3">
+        <label for="user_adjusted_why2" class="form-label">Mengapa 2:</label>
+        <textarea class="form-control" id="user_adjusted_why2" name="user_adjusted_why2" rows="2" required>{{ issue.root_cause.user_adjusted_why2 or rca_data.get('why2', '') }}</textarea>
+      </div>
+      <div class="mb-3">
+        <label for="user_adjusted_why3" class="form-label">Mengapa 3:</label>
+        <textarea class="form-control" id="user_adjusted_why3" name="user_adjusted_why3" rows="2" required>{{ issue.root_cause.user_adjusted_why3 or rca_data.get('why3', '') }}</textarea>
+      </div>
+      <div class="mb-3">
+        <label for="user_adjusted_why4" class="form-label">Mengapa 4:</label>
+        <textarea class="form-control" id="user_adjusted_why4" name="user_adjusted_why4" rows="2" required>{{ issue.root_cause.user_adjusted_why4 or rca_data.get('why4', '') }}</textarea>
+      </div>
+      <div class="mb-3">
+        <label for="user_adjusted_root_cause" class="form-label">Akar Masalah Akhir (Mengapa 5):</label>
+        <textarea class="form-control" id="user_adjusted_root_cause" name="user_adjusted_root_cause" rows="3" required>{{ issue.root_cause.user_adjusted_root_cause or rca_data.get('root_cause', '') }}</textarea>
+      </div>
+
+      <button type="submit" class="btn btn-primary">Kirim Akar Masalah yang Disesuaikan</button>
+      <a href="{{ url_for('index') }}" class="btn btn-secondary">Kembali ke Beranda</a>
+    </form>
+  {% elif issue.status == 'RCA Pending' %}
+    <div class="alert alert-info" role="alert">
+      Analisis Akar Masalah AI sedang diproses. Silakan periksa kembali nanti.
+    </div>
+     <a href="{{ url_for('index') }}" class="btn btn-secondary">Kembali ke Beranda</a>
+  {% else %}
+     <div class="alert alert-warning" role="alert">
+      Analisis Akar Masalah belum dimulai atau gagal untuk masalah ini. Status: {{ issue.status }}
+    </div>
+     <a href="{{ url_for('index') }}" class="btn btn-secondary">Kembali ke Beranda</a>
+  {% endif %}
+
+  <hr>
+
+  <h4>Rencana Tindakan (Sementara & Pencegahan)</h4>
+  {% if issue.status in ['Action Pending', 'Evidence Pending', 'Closed'] and issue.action_plan %} {# Check status and if action plan exists #}
+    {% set ap_data = issue.action_plan.ai_suggested_actions_json | fromjson %}
+    <form method="POST" action="{{ url_for('edit_action_plan', capa_id=issue.capa_id) }}">
+      <div class="mb-3 p-3 border rounded bg-light">
+        <h5>Saran AI:</h5>
+        {% if ap_data.error %}
+          <p class="text-danger"><strong>Error memproses saran AI:</strong> {{ ap_data.error }}</p>
+          <pre><code>{{ ap_data.raw_response }}</code></pre>
+        {% else %}
+          <div class="card mb-3">
+            <div class="card-header bg-primary text-white">
+              <strong>Tindakan Sementara</strong>
+            </div>
+            <div class="card-body">
+              {% set temp_actions = ap_data.get('temporary_action', []) %}
+              {% if temp_actions|length > 0 %}
+                <div class="table-responsive">
+                  <table class="table table-hover">
+                    <thead>
+                      <tr>
+                        <th scope="col" width="5%">#</th>
+                        <th scope="col" width="95%">Langkah Tindakan</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for action in temp_actions %}
+                        <tr>
+                          <td>{{ loop.index }}</td>
+                          <td>{{ action.langkah }}</td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              {% else %}
+                <p class="card-text">Tidak ada tindakan sementara yang disarankan</p>
+              {% endif %}
+            </div>
+          </div>
+          
+          <div class="card">
+            <div class="card-header bg-success text-white">
+              <strong>Tindakan Pencegahan</strong>
+            </div>
+            <div class="card-body">
+              {% set prev_actions = ap_data.get('preventive_action', []) %}
+              {% if prev_actions|length > 0 %}
+                <div class="table-responsive">
+                  <table class="table table-hover">
+                    <thead>
+                      <tr>
+                        <th scope="col" width="5%">#</th>
+                        <th scope="col" width="95%">Langkah Tindakan</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for action in prev_actions %}
+                        <tr>
+                          <td>{{ loop.index }}</td>
+                          <td>{{ action.langkah }}</td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              {% else %}
+                <p class="card-text">Tidak ada tindakan pencegahan yang disarankan</p>
+              {% endif %}
+            </div>
+          </div>
+        {% endif %}
+      </div>
+
+      <h5>Penyesuaian Rencana Tindakan & Detail:</h5>
+      <p class="text-muted">Tinjau saran AI dan sesuaikan tindakan di bawah ini. Tetapkan PIC dan Tanggal Jatuh Tempo untuk setiap langkah.</p>
+      
+      <!-- Data lama untuk kompatibilitas -->
+      <input type="hidden" id="user_adjusted_temp_action" name="user_adjusted_temp_action" value="{{ issue.action_plan.user_adjusted_temp_action or '' }}">
+      <input type="hidden" id="user_adjusted_prev_action" name="user_adjusted_prev_action" value="{{ issue.action_plan.user_adjusted_prev_action or '' }}">
+      <input type="hidden" id="pic_name" name="pic_name" value="{{ issue.action_plan.pic_name or '' }}">
+      <input type="hidden" id="due_date" name="due_date" value="{{ issue.action_plan.due_date.strftime('%Y-%m-%d') if issue.action_plan.due_date else '' }}">
+      
+      <!-- Form Tindakan Sementara (Tabulasi Dinamis) -->
+      <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+          <strong>Tindakan Sementara</strong>
+        </div>
+        <div class="card-body">
+          <div id="temp-actions-container">
+            {% set adjusted_temp_actions = issue.action_plan.user_adjusted_actions_json | fromjson if issue.action_plan.user_adjusted_actions_json else None %}
+            {% set temp_actions = ap_data.get('temporary_action', []) %}
+            
+            {% for i in range(temp_actions|length) %}
+              {% set action = temp_actions[i] %}
+              <div class="action-item mb-3 border p-3 rounded position-relative">
+                <button type="button" class="btn btn-sm btn-danger position-absolute end-0 top-0 m-2 delete-action" title="Hapus"><i class="fas fa-trash"></i></button>
+                <div class="row">
+                  <div class="col-12">
+                    <div class="mb-2">
+                      <label class="form-label">Langkah Tindakan:</label>
+                      <textarea class="form-control" name="temp_action_text[]" rows="2" required>{{ adjusted_temp_actions.temp_actions[i].action_text if adjusted_temp_actions and adjusted_temp_actions.temp_actions|length > i else action.langkah }}</textarea>
+                    </div>
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="col-md-5">
+                    <div class="mb-2">
+                      <label class="form-label">Penanggung Jawab (PIC):</label>
+                      <input type="text" class="form-control" name="temp_action_pic[]" value="{{ adjusted_temp_actions.temp_actions[i].pic if adjusted_temp_actions and adjusted_temp_actions.temp_actions|length > i else '' }}" required>
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <div class="mb-2">
+                      <label class="form-label">Tenggat Waktu:</label>
+                      <input type="date" class="form-control" name="temp_action_due_date[]" value="{{ adjusted_temp_actions.temp_actions[i].due_date if adjusted_temp_actions and adjusted_temp_actions.temp_actions|length > i else '' }}" required>
+                    </div>
+                  </div>
+                  <div class="col-md-3">
+                    <div class="mb-2">
+                      <label class="form-label">Status:</label>
+                      <select class="form-select" name="temp_action_status[]">
+                        <option value="Pending" {{ 'selected' if adjusted_temp_actions and adjusted_temp_actions.temp_actions|length > i and adjusted_temp_actions.temp_actions[i].status == 'Pending' }}>Pending</option>
+                        <option value="In Progress" {{ 'selected' if adjusted_temp_actions and adjusted_temp_actions.temp_actions|length > i and adjusted_temp_actions.temp_actions[i].status == 'In Progress' }}>In Progress</option>
+                        <option value="Closed" {{ 'selected' if adjusted_temp_actions and adjusted_temp_actions.temp_actions|length > i and adjusted_temp_actions.temp_actions[i].status == 'Closed' or (adjusted_temp_actions and adjusted_temp_actions.temp_actions|length > i and adjusted_temp_actions.temp_actions[i].completed) }}>Closed</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                <input type="hidden" name="temp_action_completed[]" value="{{ i if (adjusted_temp_actions and adjusted_temp_actions.temp_actions|length > i and adjusted_temp_actions.temp_actions[i].status == 'Closed') or (adjusted_temp_actions and adjusted_temp_actions.temp_actions|length > i and adjusted_temp_actions.temp_actions[i].completed) else '' }}">
+                <input type="hidden" name="temp_action_indicator[]" value="">
+              </div>
+            {% endfor %}
+          </div>
+          <div class="text-center mt-2">
+            <button type="button" class="btn btn-sm btn-success add-temp-action"><i class="fas fa-plus"></i> Tambah Tindakan Sementara</button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Form Tindakan Pencegahan (Tabulasi Dinamis) -->
+      <div class="card mb-4">
+        <div class="card-header bg-success text-white">
+          <strong>Tindakan Pencegahan</strong>
+        </div>
+        <div class="card-body">
+          <div id="prev-actions-container">
+            {% set prev_actions = ap_data.get('preventive_action', []) %}
+            
+            {% if prev_actions|length > 0 %}
+              {% for i in range(prev_actions|length) %}
+                {% set action = prev_actions[i] %}
+                <div class="action-item mb-3 border p-3 rounded position-relative">
+                <button type="button" class="btn btn-sm btn-danger position-absolute end-0 top-0 m-2 delete-action" title="Hapus"><i class="fas fa-trash"></i></button>
+                  <div class="row">
+                    <div class="col-12">
+                      <div class="mb-2">
+                        <label class="form-label">Langkah Tindakan:</label>
+                        <textarea class="form-control" name="prev_action_text[]" rows="2" required>{{ adjusted_temp_actions.prev_actions[i].action_text if adjusted_temp_actions and adjusted_temp_actions.prev_actions|length > i else action.langkah }}</textarea>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col-md-5">
+                      <div class="mb-2">
+                        <label class="form-label">Penanggung Jawab (PIC):</label>
+                        <input type="text" class="form-control" name="prev_action_pic[]" value="{{ adjusted_temp_actions.prev_actions[i].pic if adjusted_temp_actions and adjusted_temp_actions.prev_actions|length > i else '' }}" required>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="mb-2">
+                        <label class="form-label">Tenggat Waktu:</label>
+                        <input type="date" class="form-control" name="prev_action_due_date[]" value="{{ adjusted_temp_actions.prev_actions[i].due_date if adjusted_temp_actions and adjusted_temp_actions.prev_actions|length > i else '' }}" required>
+                      </div>
+                    </div>
+                    <div class="col-md-3">
+                      <div class="mb-2">
+                        <label class="form-label">Status:</label>
+                        <select class="form-select" name="prev_action_status[]">
+                          <option value="Pending" {{ 'selected' if adjusted_temp_actions and adjusted_temp_actions.prev_actions|length > i and adjusted_temp_actions.prev_actions[i].status == 'Pending' }}>Pending</option>
+                          <option value="In Progress" {{ 'selected' if adjusted_temp_actions and adjusted_temp_actions.prev_actions|length > i and adjusted_temp_actions.prev_actions[i].status == 'In Progress' }}>In Progress</option>
+                          <option value="Closed" {{ 'selected' if adjusted_temp_actions and adjusted_temp_actions.prev_actions|length > i and adjusted_temp_actions.prev_actions[i].status == 'Closed' or (adjusted_temp_actions and adjusted_temp_actions.prev_actions|length > i and adjusted_temp_actions.prev_actions[i].completed) }}>Closed</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                  <input type="hidden" name="prev_action_completed[]" value="{{ i if (adjusted_temp_actions and adjusted_temp_actions.prev_actions|length > i and adjusted_temp_actions.prev_actions[i].status == 'Closed') or (adjusted_temp_actions and adjusted_temp_actions.prev_actions|length > i and adjusted_temp_actions.prev_actions[i].completed) else '' }}">
+                  <input type="hidden" name="prev_action_indicator[]" value="">
+                </div>
+              {% endfor %}
+            {% else %}
+              <div class="action-item mb-3 border p-3 rounded position-relative">
+                <button type="button" class="btn btn-sm btn-danger position-absolute end-0 top-0 m-2 delete-action" title="Hapus"><i class="fas fa-trash"></i></button>
+                <div class="row">
+                  <div class="col-12">
+                    <div class="mb-2">
+                      <label class="form-label">Langkah Tindakan:</label>
+                      <textarea class="form-control" name="prev_action_text[]" rows="2" required>{{ adjusted_temp_actions.prev_actions[0].action_text if adjusted_temp_actions and adjusted_temp_actions.prev_actions|length > 0 else '' }}</textarea>
+                    </div>
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="col-md-5">
+                    <div class="mb-2">
+                      <label class="form-label">Penanggung Jawab (PIC):</label>
+                      <input type="text" class="form-control" name="prev_action_pic[]" value="{{ adjusted_temp_actions.prev_actions[0].pic if adjusted_temp_actions and adjusted_temp_actions.prev_actions|length > 0 else issue.action_plan.pic_name or '' }}" required>
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <div class="mb-2">
+                      <label class="form-label">Tenggat Waktu:</label>
+                      <input type="date" class="form-control" name="prev_action_due_date[]" value="{{ adjusted_temp_actions.prev_actions[0].due_date if adjusted_temp_actions and adjusted_temp_actions.prev_actions|length > 0 else issue.action_plan.due_date.strftime('%Y-%m-%d') if issue.action_plan.due_date else '' }}" required>
+                    </div>
+                  </div>
+                  <div class="col-md-3">
+                    <div class="mb-2">
+                      <label class="form-label">Status:</label>
+                      <select class="form-select" name="prev_action_status[]">
+                        <option value="Pending" {{ 'selected' if adjusted_temp_actions and adjusted_temp_actions.prev_actions|length > 0 and adjusted_temp_actions.prev_actions[0].status == 'Pending' else 'selected' }}>Pending</option>
+                        <option value="In Progress" {{ 'selected' if adjusted_temp_actions and adjusted_temp_actions.prev_actions|length > 0 and adjusted_temp_actions.prev_actions[0].status == 'In Progress' }}>In Progress</option>
+                        <option value="Closed" {{ 'selected' if adjusted_temp_actions and adjusted_temp_actions.prev_actions|length > 0 and adjusted_temp_actions.prev_actions[0].status == 'Closed' or (adjusted_temp_actions and adjusted_temp_actions.prev_actions|length > 0 and adjusted_temp_actions.prev_actions[0].completed) }}>Closed</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                <input type="hidden" name="prev_action_completed[]" value="{{ 0 if (adjusted_temp_actions and adjusted_temp_actions.prev_actions|length > 0 and adjusted_temp_actions.prev_actions[0].status == 'Closed') or (adjusted_temp_actions and adjusted_temp_actions.prev_actions|length > 0 and adjusted_temp_actions.prev_actions[0].completed) else '' }}">
+                <input type="hidden" name="prev_action_indicator[]" value="">
+              </div>
+            {% endif %}
+          </div>
+          <div class="text-center mt-2">
+            <button type="button" class="btn btn-sm btn-success add-prev-action"><i class="fas fa-plus"></i> Tambah Tindakan Pencegahan</button>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary">Kirim Rencana Tindakan</button>
+      <a href="{{ url_for('index') }}" class="btn btn-secondary">Kembali ke Beranda</a>
+    </form>
+  {% else %}
+    {% if issue.status == 'Action Pending' %}
+    <div class="alert alert-info" role="alert">
+      Rekomendasi Rencana Tindakan AI sedang diproses atau belum dibuat. Silakan periksa kembali nanti.
+    </div>
+    <a href="{{ url_for('index') }}" class="btn btn-secondary">Kembali ke Beranda</a>
+    {% endif %}
+  {% endif %}
+
+  <hr>
+
+  <h4>Pengajuan Bukti</h4>
+  {% if issue.status == 'Evidence Pending' %}
+    <form method="POST" action="{{ url_for('submit_evidence', capa_id=issue.capa_id) }}" enctype="multipart/form-data">
+      <div class="mb-3">
+        <label for="evidence_photo" class="form-label">Foto Bukti</label>
+        <input class="form-control" type="file" id="evidence_photo" name="evidence_photo" accept="image/*" required>
+      </div>
+      <div class="mb-3">
+        <label for="evidence_description" class="form-label">Deskripsi Bukti (Opsional)</label>
+        <textarea class="form-control" id="evidence_description" name="evidence_description" rows="3"></textarea>
+      </div>
+      <button type="submit" class="btn btn-success">Kirim Bukti & Tutup CAPA</button>
+       <a href="{{ url_for('index') }}" class="btn btn-secondary">Kembali ke Beranda</a>
+    </form>
+  {% elif issue.status == 'Closed' %}
+     <div class="alert alert-success" role="alert">
+      Masalah CAPA ini telah ditutup.
+    </div>
+  {% elif issue.status not in ['Open', 'RCA Pending', 'Action Pending'] %}
+     {# Show message if status is unexpected but not Evidence Pending #}
+     <div class="alert alert-secondary" role="alert">
+       Bukti tidak dapat diajukan pada tahap ini (Status: {{ issue.status }}).
+     </div>
+  {% endif %}
+
+  {# Display existing evidence #}
+  {% if issue.evidence %}
+    <h5 class="mt-4">Bukti yang Diajukan:</h5>
+    <div class="row">
+      {% for ev in issue.evidence %}
+        <div class="col-md-4 mb-3">
+          <div class="card">
+             <img src="{{ url_for('uploaded_file', filename=ev.evidence_photo_path) }}" class="card-img-top" alt="Evidence Photo {{ ev.evidence_id }}">
+             <div class="card-body">
+               {% if ev.evidence_description %}
+                 <p class="card-text">{{ ev.evidence_description | nl2br }}</p>
+               {% endif %}
+               <p class="card-text"><small class="text-muted">Diajukan: {{ ev.evidence_submission_timestamp.strftime('%Y-%m-%d %H:%M') }}</small></p>
+             </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Script untuk menambah dan menghapus action plan
+  document.addEventListener('DOMContentLoaded', function() {
+    // Template untuk tindakan sementara baru
+    const tempActionTemplate = `
+      <div class="action-item mb-3 border p-3 rounded position-relative">
+        <button type="button" class="btn btn-sm btn-danger position-absolute end-0 top-0 m-2 delete-action" title="Hapus"><i class="fas fa-trash"></i></button>
+        <div class="row">
+          <div class="col-12">
+            <div class="mb-2">
+              <label class="form-label">Langkah Tindakan:</label>
+              <textarea class="form-control" name="temp_action_text[]" rows="2" required></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-5">
+            <div class="mb-2">
+              <label class="form-label">Penanggung Jawab (PIC):</label>
+              <input type="text" class="form-control" name="temp_action_pic[]" required>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="mb-2">
+              <label class="form-label">Tenggat Waktu:</label>
+              <input type="date" class="form-control" name="temp_action_due_date[]" required>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="mb-2">
+              <label class="form-label">Status:</label>
+              <select class="form-select" name="temp_action_status[]">
+                <option value="Pending" selected>Pending</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Closed">Closed</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <input type="hidden" name="temp_action_completed[]" value="">
+        <input type="hidden" name="temp_action_indicator[]" value="">
+      </div>
+    `;
+
+    // Template untuk tindakan pencegahan baru
+    const prevActionTemplate = `
+      <div class="action-item mb-3 border p-3 rounded position-relative">
+        <button type="button" class="btn btn-sm btn-danger position-absolute end-0 top-0 m-2 delete-action" title="Hapus"><i class="fas fa-trash"></i></button>
+        <div class="row">
+          <div class="col-12">
+            <div class="mb-2">
+              <label class="form-label">Langkah Tindakan:</label>
+              <textarea class="form-control" name="prev_action_text[]" rows="2" required></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-5">
+            <div class="mb-2">
+              <label class="form-label">Penanggung Jawab (PIC):</label>
+              <input type="text" class="form-control" name="prev_action_pic[]" required>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="mb-2">
+              <label class="form-label">Tenggat Waktu:</label>
+              <input type="date" class="form-control" name="prev_action_due_date[]" required>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="mb-2">
+              <label class="form-label">Status:</label>
+              <select class="form-select" name="prev_action_status[]">
+                <option value="Pending" selected>Pending</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Closed">Closed</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <input type="hidden" name="prev_action_completed[]" value="">
+        <input type="hidden" name="prev_action_indicator[]" value="">
+      </div>
+    `;
+    
+    // Event untuk tombol tambah tindakan sementara
+    document.querySelector('.add-temp-action')?.addEventListener('click', function() {
+      const container = document.getElementById('temp-actions-container');
+      // Tambahkan template HTML ke container
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = tempActionTemplate.trim();
+      container.appendChild(tempDiv.firstElementChild);
+      // Inisialisasi event listener untuk tombol delete yang baru ditambahkan
+      setupDeleteListeners();
+    });
+    
+    // Event untuk tombol tambah tindakan pencegahan
+    document.querySelector('.add-prev-action')?.addEventListener('click', function() {
+      const container = document.getElementById('prev-actions-container');
+      // Tambahkan template HTML ke container
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = prevActionTemplate.trim();
+      container.appendChild(tempDiv.firstElementChild);
+      // Inisialisasi event listener untuk tombol delete yang baru ditambahkan
+      setupDeleteListeners();
+    });
+    
+    // Setup event listeners untuk tombol delete
+    function setupDeleteListeners() {
+      document.querySelectorAll('.delete-action').forEach(button => {
+        button.addEventListener('click', function() {
+          if (confirm('Apakah Anda yakin ingin menghapus langkah tindakan ini?')) {
+            this.closest('.action-item').remove();
+          }
+        });
+      });
+    }
+    
+    // Inisialisasi event listeners untuk tombol delete yang sudah ada
+    setupDeleteListeners();
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,5 @@
+- Buat ainya bisa belajar dari history
+- Upgrade uinya jadi lebih bagus dari web dan juga hasil pdfnya 
+- foto evidence bisa ditambah agar bisa lebih banyak
+- hapus column indikator keberhasilan pada hasil laporan CAPA (pdf)
+- Ubah databasenya ke my sql (tanya mana lebih baik)

@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Laporan CAPA #{{ issue.capa_id }}</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; }
+        h1, h2, h3 { color: #333; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 15px; }
+        h1 { font-size: 24px; text-align: center; margin-bottom: 30px; }
+        h2 { font-size: 18px; }
+        h3 { font-size: 16px; border-bottom: none; margin-bottom: 10px; color: #444; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: top; }
+        th { background-color: #f2f2f2; font-weight: bold; }
+        .subsection { margin-bottom: 20px; }
+        dl { margin-bottom: 20px; }
+        dt { font-weight: bold; width: 150px; float: left; clear: left; }
+        dd { margin-left: 160px; margin-bottom: 5px; }
+        .section { margin-bottom: 30px; page-break-inside: avoid; }
+        .photo { max-width: 300px; max-height: 300px; display: block; margin-top: 10px; border: 1px solid #ccc; padding: 5px; }
+        .logo { text-align: center; margin-bottom: 20px; } /* Placeholder for logo */
+        .footer { text-align: center; font-size: 10px; color: #777; position: fixed; bottom: 0; width: 100%; } /* Basic footer */
+        .rca-item, .ap-item { margin-bottom: 10px; }
+        .label { font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="logo">
+        <!-- Add company logo here if available -->
+        <!-- <img src="/path/to/your/logo.png" alt="SANSICO Logo" style="max-height: 80px;"> -->
+        <h1>Laporan Tindakan Korektif dan Preventif (CAPA)</h1>
+    </div>
+
+    <div class="section">
+        <h2>Detail Masalah (CAPA #{{ issue.capa_id }})</h2>
+        <dl>
+            <dt>Pelanggan:</dt>
+            <dd>{{ issue.customer_name }}</dd>
+            <dt>Item Terkait:</dt>
+            <dd>{{ issue.item_involved }}</dd>
+            <dt>Tanggal Masalah:</dt>
+            <dd>{{ issue.issue_date.strftime('%Y-%m-%d') }}</dd>
+            <dt>Tanggal Pengajuan:</dt>
+            <dd>{{ issue.submission_timestamp.strftime('%Y-%m-%d %H:%M') }}</dd>
+            <dt>Status:</dt>
+            <dd>{{ issue.status }}</dd>
+            <dt>Deskripsi:</dt>
+            <dd>{{ issue.issue_description | nl2br }}</dd>
+        </dl>
+        {% if issue.initial_photo_path %}
+            <h3>Foto Awal:</h3>
+            <img src="{{ url_for('uploaded_file', filename=issue.initial_photo_path, _external=True) }}" class="photo" alt="Initial Issue Photo">
+            <!-- Note: _external=True might be needed for WeasyPrint to resolve local URLs -->
+        {% endif %}
+    </div>
+
+    {% if issue.root_cause %}
+    <div class="section">
+        <h2>Analisis Akar Masalah (5 Why)</h2>
+        {% set rca_data = issue.root_cause.ai_suggested_rc_json | fromjson %}
+        <div class="rca-item"><span class="label">Mengapa 1:</span> {{ issue.root_cause.user_adjusted_why1 or rca_data.get('why1', 'N/A') }}</div>
+        <div class="rca-item"><span class="label">Mengapa 2:</span> {{ issue.root_cause.user_adjusted_why2 or rca_data.get('why2', 'N/A') }}</div>
+        <div class="rca-item"><span class="label">Mengapa 3:</span> {{ issue.root_cause.user_adjusted_why3 or rca_data.get('why3', 'N/A') }}</div>
+        <div class="rca-item"><span class="label">Mengapa 4:</span> {{ issue.root_cause.user_adjusted_why4 or rca_data.get('why4', 'N/A') }}</div>
+        <div class="rca-item"><span class="label">Akar Masalah Akhir:</span> {{ issue.root_cause.user_adjusted_root_cause or rca_data.get('root_cause', 'N/A') }}</div>
+        <p><small>Analisis Diajukan: {{ issue.root_cause.rc_submission_timestamp.strftime('%Y-%m-%d %H:%M') if issue.root_cause.rc_submission_timestamp else 'N/A' }}</small></p>
+    </div>
+    {% endif %}
+
+    {% if issue.action_plan %}
+    <div class="section">
+        <h2>Rencana Tindakan</h2>
+        {% set adjusted_actions = issue.action_plan.user_adjusted_actions_json | fromjson if issue.action_plan.user_adjusted_actions_json else None %}
+        
+        {% if adjusted_actions %}
+            <!-- Tampilan Terstruktur Menggunakan Format Baru -->
+            <div class="subsection">
+                <h3>Tindakan Sementara</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 5%;">No.</th>
+                            <th style="width: 40%;">Deskripsi Tindakan</th>
+                            <th style="width: 20%;">Indikator Keberhasilan</th>
+                            <th style="width: 15%;">PIC</th>
+                            <th style="width: 15%;">Tenggat Waktu</th>
+                            <th style="width: 5%;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for action in adjusted_actions.temp_actions %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td>{{ action.action_text }}</td>
+                                <td>{{ action.indicator or '-' }}</td>
+                                <td>{{ action.pic }}</td>
+                                <td>{{ action.due_date }}</td>
+                                <td>{{ 'Selesai' if action.completed else 'Belum' }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="subsection">
+                <h3>Tindakan Pencegahan</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 5%;">No.</th>
+                            <th style="width: 40%;">Deskripsi Tindakan</th>
+                            <th style="width: 20%;">Indikator Keberhasilan</th>
+                            <th style="width: 15%;">PIC</th>
+                            <th style="width: 15%;">Tenggat Waktu</th>
+                            <th style="width: 5%;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for action in adjusted_actions.prev_actions %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td>{{ action.action_text }}</td>
+                                <td>{{ action.indicator or '-' }}</td>
+                                <td>{{ action.pic }}</td>
+                                <td>{{ action.due_date }}</td>
+                                <td>{{ 'Selesai' if action.completed else 'Belum' }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <!-- Tampilan Lama untuk Kompatibilitas -->
+            <div class="ap-item"><span class="label">Tindakan Sementara:</span> {{ issue.action_plan.user_adjusted_temp_action or 'N/A' }}</div>
+            <div class="ap-item"><span class="label">Tindakan Pencegahan:</span> {{ issue.action_plan.user_adjusted_prev_action or 'N/A' }}</div>
+            <br>
+            <div class="ap-item"><span class="label">Penanggung Jawab (PIC):</span> {{ issue.action_plan.pic_name or 'N/A' }}</div>
+            <div class="ap-item"><span class="label">Tanggal Jatuh Tempo:</span> {{ issue.action_plan.due_date.strftime('%Y-%m-%d') if issue.action_plan.due_date else 'N/A' }}</div>
+        {% endif %}
+        
+        <p><small>Rencana Tindakan Diajukan: {{ issue.action_plan.action_submission_timestamp.strftime('%Y-%m-%d %H:%M') if issue.action_plan.action_submission_timestamp else 'N/A' }}</small></p>
+    </div>
+    {% endif %}
+
+    {% if issue.evidence %}
+    <div class="section">
+        <h2>Bukti</h2>
+        {% for ev in issue.evidence %}
+            <div style="margin-bottom: 15px; page-break-inside: avoid;">
+                <img src="{{ url_for('uploaded_file', filename=ev.evidence_photo_path, _external=True) }}" class="photo" alt="Evidence Photo {{ ev.evidence_id }}">
+                {% if ev.evidence_description %}
+                    <p>{{ ev.evidence_description | nl2br }}</p>
+                {% endif %}
+                <p><small>Bukti Diajukan: {{ ev.evidence_submission_timestamp.strftime('%Y-%m-%d %H:%M') }}</small></p>
+            </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="footer">
+        Dibuat pada {{ datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S') }} UTC oleh SANSICO Asisten AI CAPA
+    </div>
+
+</body>
+</html>

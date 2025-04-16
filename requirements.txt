@@ -1,0 +1,5 @@
+Flask
+Flask-SQLAlchemy
+google-generativeai
+WeasyPrint # Switched back from fpdf2
+python-dotenv # To manage API keys securely

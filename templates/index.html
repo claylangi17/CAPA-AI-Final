@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}CAPA Dashboard{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-4 pb-3 mb-4 border-bottom">
+    <h1 class="h2"><i class="fas fa-tachometer-alt me-2"></i>Dasbor CAPA</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+      <a href="{{ url_for('new_capa') }}" class="btn btn-primary">
+        <i class="fas fa-plus-circle me-1"></i> Tambah CAPA Baru
+      </a>
+    </div>
+  </div>
+
+  <!-- Welcome Card -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <h5 class="card-title">Selamat Datang di Asisten AI CAPA SANSICO</h5>
+      <p class="card-text">Alat ini membantu Anda mengelola Tindakan Korektif dan Preventif dengan analisis akar masalah dan pembuatan rencana tindakan berbantuan AI.</p>
+      <div class="row text-center mt-3">
+        <div class="col-md-4">
+          <div class="dashboard-icon"><i class="fas fa-clipboard-list"></i></div>
+          <h5>Catat Masalah</h5>
+          <p class="small">Dokumentasikan masalah kualitas atau produksi</p>
+        </div>
+        <div class="col-md-4">
+          <div class="dashboard-icon"><i class="fas fa-search"></i></div>
+          <h5>Analisis Akar Masalah</h5>
+          <p class="small">Terapkan metode 5 Why dengan bantuan AI</p>
+        </div>
+        <div class="col-md-4">
+          <div class="dashboard-icon"><i class="fas fa-tasks"></i></div>
+          <h5>Buat Rencana Tindakan</h5>
+          <p class="small">Buat tindakan korektif yang efektif</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats Summary -->
+  <div class="row mb-4">
+    <div class="col-md-4">
+      <div class="card dashboard-card">
+        <div class="card-body text-center">
+          <h3 class="display-5 text-primary">{{ issues|length if issues else 0 }}</h3>
+          <h5>Total Masalah</h5>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card dashboard-card">
+        <div class="card-body text-center">
+          <h3 class="display-5 text-warning">{{ issues|selectattr('status', 'ne', 'Closed')|list|length if issues else 0 }}</h3>
+          <h5>Masalah Terbuka</h5>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card dashboard-card">
+        <div class="card-body text-center">
+          <h3 class="display-5 text-success">{{ issues|selectattr('status', 'eq', 'Closed')|list|length if issues else 0 }}</h3>
+          <h5>Masalah Tertutup</h5>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h2 class="mb-3"><i class="fas fa-clipboard-list me-2"></i>Masalah CAPA</h2>
+  
+  {% if issues %}
+    <div class="row row-cols-1 row-cols-md-2 g-4">
+      {% for issue in issues %}
+        <div class="col">
+          <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <span>CAPA #{{ issue.capa_id }}</span>
+              {% if issue.status == 'Open' %}
+                <span class="badge status-badge status-open">{{ issue.status }}</span>
+              {% elif issue.status == 'Closed' %}
+                <span class="badge status-badge status-closed">{{ issue.status }}</span>
+              {% else %}
+                <span class="badge bg-info text-white status-badge">{{ issue.status }}</span>
+              {% endif %}
+            </div>
+            <div class="card-body">
+              <h5 class="card-title">{{ issue.customer_name }}</h5>
+              <h6 class="card-subtitle mb-2 text-muted">Item: {{ issue.item_involved }}</h6>
+              <p class="card-text">
+                <small class="text-muted">
+                  <i class="far fa-calendar-alt me-1"></i> Issue Date: {{ issue.issue_date.strftime('%Y-%m-%d') }}<br>
+                  <i class="far fa-clock me-1"></i> Submitted: {{ issue.submission_timestamp.strftime('%Y-%m-%d %H:%M') }}
+                </small>
+              </p>
+              <div class="text-end mt-3">
+                <a href="{{ url_for('view_capa', capa_id=issue.capa_id) }}" class="btn btn-primary">
+                  <i class="fas fa-eye me-1"></i> Lihat Detail
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="alert alert-info">
+      <i class="fas fa-info-circle me-2"></i> Tidak ada masalah CAPA ditemukan. Klik "Tambah CAPA Baru" untuk membuat masalah pertama Anda.
+    </div>
+  {% endif %}
+{% endblock %}
