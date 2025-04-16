@@ -3,3 +3,4 @@
 - foto evidence bisa ditambah agar bisa lebih banyak
 - hapus column indikator keberhasilan pada hasil laporan CAPA (pdf)
 - Ubah databasenya ke my sql (tanya mana lebih baik)
+- Bug list tidak terhapus untuk action plan
