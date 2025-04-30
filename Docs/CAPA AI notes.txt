@@ -5,10 +5,10 @@
 5. AI bisa baca gambar issuenya (security data, RAP, merek orang disebar gabisa disebar) -> check the security of the ai, dan after paid what happen.
 6. Simulasi biaya ainya per satu bulan kira kira bisa berapa 
 7. Table beda untuk dibaca ai agar future usenya 
-8. Pilih batch 
+8. Masukan batch done 
 9. Status 
 10. Bedakan tiap pt dalam websitenya, 
-11. Tambahkan informasi process (Machine/ line) Routingnya
+11. Tambahkan informasi process (Machine/ line) Routingnya done 
 
 Flow:
 masukin case (Batch, Jumlah reject) -> required untuk gemba (Foto, deskripsi real issue) -> RCA -> Action plan -> evidence 

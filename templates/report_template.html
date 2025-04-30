@@ -39,6 +39,10 @@
             <dd>{{ issue.customer_name }}</dd>
             <dt>Item Terkait:</dt>
             <dd>{{ issue.item_involved }}</dd>
+            <dt>Nama Mesin:</dt>
+            <dd>{{ issue.machine_name or 'Tidak Ada' }}</dd>
+            <dt>Nomor Batch:</dt>
+            <dd>{{ issue.batch_number or 'Tidak Ada' }}</dd>
             <dt>Tanggal Masalah:</dt>
             <dd>{{ issue.issue_date.strftime('%Y-%m-%d') }}</dd>
             <dt>Tanggal Pengajuan:</dt>

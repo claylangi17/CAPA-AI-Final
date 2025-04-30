@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+
+{% block title %}Gemba Investigation for CAPA #{{ issue.capa_id }}{% endblock %}
+
+{% block content %}
+  <style>
+    /* CSS untuk AI Loading Animation */
+    .ai-loading-container {
+      max-width: 600px;
+      margin: 0 auto;
+      text-align: center;
+      padding: 1.5rem;
+    }
+    .ai-brain {
+      position: relative;
+      width: 120px;
+      height: 120px;
+      margin: 0 auto 1.5rem;
+    }
+    .ai-pulse {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      border-radius: 50%;
+      background: rgba(52, 152, 219, 0.1);
+      animation: pulse 2s infinite ease-in-out;
+    }
+    .ai-brain-path {
+      fill: none;
+      stroke: #3498db;
+      stroke-width: 1.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      transition: stroke 0.5s;
+    }
+    .ai-text-animation:after {
+      content: '...';
+      display: inline-block;
+      width: 1em;
+      animation: ellipsis 1.5s infinite;
+      text-align: left;
+    }
+    .ai-progress-bar {
+      height: 6px;
+      background-color: #ecf0f1;
+      border-radius: 10px;
+      overflow: hidden;
+      margin: 1.5rem 0;
+    }
+    .ai-progress-fill {
+      height: 100%;
+      width: 0%;
+      background-color: #3498db;
+      border-radius: 10px;
+      animation: progress 30s linear forwards;
+    }
+    @keyframes pulse {
+      0% { transform: scale(0.95); opacity: 0.7; }
+      50% { transform: scale(1.05); opacity: 0.3; }
+      100% { transform: scale(0.95); opacity: 0.7; }
+    }
+    @keyframes ellipsis {
+      0% { content: '.'; }
+      33% { content: '..'; }
+      66% { content: '...'; }
+    }
+    @keyframes progress {
+      0% { width: 0%; }
+      100% { width: 100%; }
+    }
+  </style>
+  <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3">
+    <h2 class="mb-0">Gemba Investigation for CAPA #{{ issue.capa_id }}</h2>
+  </div>
+  <hr class="mt-0">
+
+  <!-- Loading Overlay AI Animation -->
+  <div id="ai-loading-overlay" class="position-fixed top-0 start-0 w-100 h-100 d-none" style="background-color: rgba(255,255,255,0.9); z-index: 9999;">
+    <div class="position-absolute top-50 start-50 translate-middle text-center">
+      <div class="ai-loading-container">
+        <div class="ai-brain">
+          <div class="ai-pulse"></div>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path class="ai-brain-path" d="M9 4.5a1 1 0 0 0-1 1v4H6a2 2 0 0 0-2 2v.5A2.5 2.5 0 0 0 6.5 14h3a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v2a1.5 1.5 0 0 0 1.5 1.5h3a2.5 2.5 0 0 0 2.5-2.5V11.5a2 2 0 0 0-2-2h-2V5.5a1 1 0 0 0-1-1h-6Zm-3 7a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1.5a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5V10a1.5 1.5 0 0 1 1.5-1.5h1a.5.5 0 0 1 .5.5v1.5a1.5 1.5 0 0 1-1.5 1.5h-3a.5.5 0 0 0-.5.5 1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 6 12.5V11.5Z"/>
+            <path class="ai-brain-path" d="M12 1c1.5 0 2.793.636 3.5 1.414A5 5 0 0 1 19 7v1a1 1 0 1 1-2 0V7a3 3 0 0 0-3-3 2 2 0 0 0-2 2v8a2 2 0 1 1-4 0V7a3 3 0 0 0-3-3 2 2 0 0 0-2 2v1a1 1 0 1 1-2 0V7a4 4 0 0 1 4-4c1.054 0 2.011.423 2.716 1.11C8.434 3.416 9.733 3 11 3h1ZM5 15a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3 1 1 0 1 1 2 0 5 5 0 0 1-5 5H8a5 5 0 0 1-5-5 1 1 0 0 1 2 0Z"/>
+          </svg>
+        </div>
+        <h3 class="ai-text-animation">AI Sedang Memproses Data Gemba</h3>
+        <p class="text-muted ai-text-progress">Menganalisis temuan, foto, dan informasi. Menerapkan teknik 5 Whys...</p>
+        <div class="ai-progress-bar">
+          <div class="ai-progress-fill"></div>
+        </div>
+        <p class="mt-4">Mohon tunggu sementara AI menganalisis data Anda</p>
+        <p class="text-muted small">Waktu estimasi: 30-60 detik</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fas fa-info-circle me-2"></i> Silakan isi hasil investigasi lapangan (Gemba) di bawah ini sebelum melanjutkan ke analisis AI.
+  </div>
+
+  <div class="row mb-4">
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header bg-primary text-white">
+          <strong>Issue Details</strong>
+        </div>
+        <div class="card-body">
+          <dl class="row">
+            <dt class="col-sm-4">Customer:</dt>
+            <dd class="col-sm-8">{{ issue.customer_name }}</dd>
+
+            <dt class="col-sm-4">Item Involved:</dt>
+            <dd class="col-sm-8">{{ issue.item_involved }}</dd>
+
+            <dt class="col-sm-4">Machine Name:</dt>
+            <dd class="col-sm-8">{{ issue.machine_name or 'Not Available' }}</dd>
+
+            <dt class="col-sm-4">Batch Number:</dt>
+            <dd class="col-sm-8">{{ issue.batch_number or 'Not Available' }}</dd>
+
+            <dt class="col-sm-4">Issue Date:</dt>
+            <dd class="col-sm-8">{{ issue.issue_date.strftime('%Y-%m-%d') }}</dd>
+
+            <dt class="col-sm-4">Description:</dt>
+            <dd class="col-sm-8">{{ issue.issue_description | nl2br }}</dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header bg-primary text-white">
+          <strong>Initial Photo</strong>
+        </div>
+        <div class="card-body text-center">
+          {% if issue.initial_photo_path %}
+            <img src="{{ url_for('uploaded_file', filename=issue.initial_photo_path) }}" class="img-fluid" alt="Initial Issue Photo">
+          {% else %}
+            <p>No initial photo was uploaded.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-header bg-success text-white">
+      <strong>Hasil Investigasi Gemba</strong>
+    </div>
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('gemba_investigation', capa_id=issue.capa_id) }}" enctype="multipart/form-data">
+        <div class="mb-3">
+          <label for="gemba_findings" class="form-label required-field">Apa hasil temuan dari investigasi lapangan Anda?</label>
+          <textarea class="form-control" id="gemba_findings" name="gemba_findings" rows="5" required 
+                  placeholder="Jelaskan temuan, penyebab yang dicurigai, dan faktor-faktor yang berkontribusi dari hasil investigasi lapangan (Gemba) Anda."></textarea>
+        </div>
+        
+        <div class="mb-3">
+          <label for="gemba_photos" class="form-label required-field">Foto Bukti</label>
+          <input class="form-control" type="file" id="gemba_photos" name="gemba_photos" accept="image/*" multiple required>
+          <div class="form-text">Unggah foto bukti dari investigasi lapangan. Bisa pilih beberapa foto sekaligus.</div>
+        </div>
+        
+        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+          <button type="submit" class="btn btn-primary" id="submit-gemba-btn">
+            <i class="fas fa-check-circle me-1"></i> Kirim & Lanjutkan ke Analisis AI
+          </button>
+          <a href="{{ url_for('index') }}" class="btn btn-secondary">
+            <i class="fas fa-times-circle me-1"></i> Batal
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    const loadingOverlay = document.getElementById('ai-loading-overlay');
+    
+    if (form) {
+      form.addEventListener('submit', function(e) {
+        // Validasi form
+        if (form.checkValidity()) {
+          // Tampilkan loading overlay
+          loadingOverlay.classList.remove('d-none');
+          
+          // Animasi tambahan untuk brain paths
+          const brainPaths = document.querySelectorAll('.ai-brain-path');
+          brainPaths.forEach(path => {
+            setInterval(() => {
+              path.style.stroke = getRandomColor();
+            }, 3000);
+          });
+        }
+        // Jika form tidak valid, browser akan menangani validasi
+      });
+    }
+    
+    function getRandomColor() {
+      const colors = ['#3498db', '#2ecc71', '#9b59b6', '#e67e22', '#e74c3c', '#f1c40f'];
+      return colors[Math.floor(Math.random() * colors.length)];
+    }
+  });
+</script>
+{% endblock %}
