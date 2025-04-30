@@ -11,6 +11,7 @@ import json  # For storing AI suggestions later
 from flask import make_response  # For sending PDF response
 from weasyprint import HTML  # Import WeasyPrint
 from weasyprint import CSS  # Import CSS separately
+import pymysql  # Add MySQL connector
 # FontConfiguration is now imported differently in newer versions
 
 # Load environment variables (especially API Key)
@@ -65,8 +66,12 @@ app.jinja_env.filters['nl2br'] = nl2br_filter
 
 # Necessary for flash messages and sessions
 app.config['SECRET_KEY'] = os.urandom(24)
-# Use SQLite for development
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///capa_db.sqlite3'
+# MySQL Configuration - Using environment variables for security
+db_username = os.getenv('DB_USERNAME', 'root')
+db_password = os.getenv('DB_PASSWORD', '')
+db_host = os.getenv('DB_HOST', 'localhost')
+db_name = os.getenv('DB_NAME', 'capa_ai_system')
+app.config['SQLALCHEMY_DATABASE_URI'] = f'mysql+pymysql://{db_username}:{db_password}@{db_host}/{db_name}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'uploads'  # Folder to store uploaded images
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * \
@@ -85,6 +90,10 @@ class CapaIssue(db.Model):
     issue_date = db.Column(db.Date, nullable=False)
     issue_description = db.Column(db.Text, nullable=False)
     item_involved = db.Column(db.String(200), nullable=False)
+    # Machine information
+    machine_name = db.Column(db.String(200))
+    # Batch information
+    batch_number = db.Column(db.String(100))
     # Path to initial issue photo
     initial_photo_path = db.Column(db.String(300))
     submission_timestamp = db.Column(db.DateTime, default=datetime.utcnow)
@@ -168,6 +177,8 @@ def new_capa():
         item_involved = request.form.get('item_involved')
         issue_date_str = request.form.get('issue_date')
         issue_description = request.form.get('issue_description')
+        machine_name = request.form.get('machine_name')
+        batch_number = request.form.get('batch_number')
         initial_photo = request.files.get('initial_photo')
 
         # Basic validation
@@ -200,6 +211,8 @@ def new_capa():
             item_involved=item_involved,
             issue_date=issue_date,
             issue_description=issue_description,
+            machine_name=machine_name,
+            batch_number=batch_number,
             initial_photo_path=photo_path,
             status='Open'  # Initial status
         )
