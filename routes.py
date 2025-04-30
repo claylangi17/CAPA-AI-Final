@@ -6,6 +6,7 @@ import json
 
 from models import db, CapaIssue, RootCause, ActionPlan, Evidence, GembaInvestigation
 from ai_service import trigger_rca_analysis, trigger_action_plan_recommendation
+from ai_learning import store_rca_learning, store_action_plan_learning
 from utils import allowed_file
 from config import UPLOAD_FOLDER
 
@@ -21,6 +22,11 @@ def register_routes(app):
     def gemba_investigation(capa_id):
         # Get the CAPA issue
         issue = CapaIssue.query.get_or_404(capa_id)
+        
+        # Check if CAPA is closed
+        if issue.status == 'Closed':
+            flash('CAPA sudah ditutup. Tidak dapat melakukan input atau edit lagi.', 'warning')
+            return redirect(url_for('view_capa', capa_id=capa_id))
         
         # Check if already completed gemba
         if issue.gemba_investigation:
@@ -168,6 +174,12 @@ def register_routes(app):
     def edit_rca(capa_id):
         issue = CapaIssue.query.options(db.joinedload(
             CapaIssue.root_cause)).get_or_404(capa_id)
+            
+        # Check if CAPA is closed
+        if issue.status == 'Closed':
+            flash('CAPA sudah ditutup. Tidak dapat melakukan input atau edit lagi.', 'warning')
+            return redirect(url_for('view_capa', capa_id=capa_id))
+            
         rc = issue.root_cause
 
         if not rc:
@@ -189,6 +201,16 @@ def register_routes(app):
         try:
             db.session.commit()
             flash('Adjusted Root Cause submitted successfully! Triggering AI Action Plan recommendation...', 'success')
+
+            # Store the user's RCA adjustment for AI learning
+            try:
+                learning_success = store_rca_learning(capa_id)
+                if learning_success:
+                    print(f"Successfully stored RCA learning data from CAPA ID {capa_id}")
+                    # Don't show this message to user to keep UI clean
+            except Exception as learning_error:
+                # Log the error but don't show to user to keep UI clean
+                print(f"Error storing RCA learning data for CAPA ID {capa_id}: {learning_error}")
 
             # --- Trigger AI Action Plan Recommendation ---
             try:
@@ -217,6 +239,12 @@ def register_routes(app):
     def edit_action_plan(capa_id):
         issue = CapaIssue.query.options(db.joinedload(
             CapaIssue.action_plan)).get_or_404(capa_id)
+            
+        # Check if CAPA is closed
+        if issue.status == 'Closed':
+            flash('CAPA sudah ditutup. Tidak dapat melakukan input atau edit lagi.', 'warning')
+            return redirect(url_for('view_capa', capa_id=capa_id))
+            
         ap = issue.action_plan
 
         if not ap:
@@ -355,6 +383,17 @@ def register_routes(app):
 
         try:
             db.session.commit()
+            
+            # Store the user's action plan adjustment for AI learning
+            try:
+                learning_success = store_action_plan_learning(capa_id)
+                if learning_success:
+                    print(f"Successfully stored action plan learning data from CAPA ID {capa_id}")
+                    # Don't show this message to user to keep UI clean
+            except Exception as learning_error:
+                # Log the error but don't show to user to keep UI clean
+                print(f"Error storing action plan learning data for CAPA ID {capa_id}: {learning_error}")
+            
             flash('Rencana Tindakan berhasil diajukan!', 'success')
             return redirect(url_for('view_capa', capa_id=capa_id))
         except Exception as e:
@@ -367,6 +406,10 @@ def register_routes(app):
     def submit_evidence(capa_id):
         issue = CapaIssue.query.get_or_404(capa_id)
 
+        if issue.status == 'Closed':
+            flash('CAPA sudah ditutup. Tidak dapat melakukan input atau edit lagi.', 'warning')
+            return redirect(url_for('view_capa', capa_id=capa_id))
+            
         if issue.status != 'Evidence Pending':
             flash(
                 f'Cannot submit evidence for issue in status "{issue.status}".', 'warning')
@@ -396,6 +439,24 @@ def register_routes(app):
             
             if action_index and action_index.isdigit():
                 action_index = int(action_index)
+                
+                # Periksa apakah tindakan yang akan diberi bukti sudah ditandai sebagai selesai
+                if issue.action_plan and issue.action_plan.user_adjusted_actions_json:
+                    try:
+                        action_plan_data = json.loads(issue.action_plan.user_adjusted_actions_json)
+                        
+                        # Periksa apakah tindakan yang dipilih sudah selesai
+                        if action_type == 'temporary' and len(action_plan_data.get('temp_actions', [])) > action_index:
+                            if action_plan_data['temp_actions'][action_index].get('completed', False):
+                                flash('Tindakan ini sudah ditandai selesai. Tidak dapat menambahkan bukti baru.', 'warning')
+                                return redirect(url_for('view_capa', capa_id=capa_id))
+                        elif action_type == 'preventive' and len(action_plan_data.get('prev_actions', [])) > action_index:
+                            if action_plan_data['prev_actions'][action_index].get('completed', False):
+                                flash('Tindakan ini sudah ditandai selesai. Tidak dapat menambahkan bukti baru.', 'warning')
+                                return redirect(url_for('view_capa', capa_id=capa_id))
+                    except Exception as e:
+                        print(f"Error checking action status: {str(e)}")  
+                        # Biarkan proses berlanjut jika terjadi kesalahan
             else:
                 action_index = None
 

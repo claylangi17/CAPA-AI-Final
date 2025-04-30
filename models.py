@@ -100,3 +100,13 @@ class GembaInvestigation(db.Model):
     @gemba_photos.setter
     def gemba_photos(self, photo_list):
         self.gemba_photos_json = json.dumps(photo_list)
+
+
+class AIKnowledgeBase(db.Model):
+    __tablename__ = 'ai_knowledge_base'
+    knowledge_id = db.Column(db.Integer, primary_key=True)
+    source_type = db.Column(db.String(50), nullable=False)  # e.g., 'rca_adjustment', 'action_plan_adjustment', etc.
+    source_id = db.Column(db.Integer, nullable=False)  # ID of the source record (e.g., capa_id)
+    knowledge_data = db.Column(db.Text, nullable=False)  # JSON string containing the knowledge data
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    is_active = db.Column(db.Boolean, default=True)  # Flag to disable/enable knowledge entries

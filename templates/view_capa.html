@@ -2,6 +2,10 @@
 
 {% block title %}Lihat CAPA #{{ issue.capa_id }}{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/evidence-image.css') }}">
+{% endblock %}
+
 {# Helper function for checking if evidence exists for an action #}
 {% macro evidence_exists_for_action(action_type, index) %}
 {% for ev in issue.evidence if ev.action_type == action_type and ev.action_index == index %}
@@ -281,6 +285,11 @@
 <h4>Analisis Akar Masalah (5 Why)</h4>
 {% if issue.root_cause and issue.root_cause.ai_suggested_rc_json %}
 {% set rca_data = issue.root_cause.ai_suggested_rc_json | fromjson %} {# Use fromjson filter #}
+{% if issue.status == 'Closed' %}
+<div class="alert alert-warning" role="alert">
+  <i class="fas fa-lock"></i> CAPA sudah ditutup. Root Cause Analysis tidak dapat diedit lagi.
+</div>
+{% endif %}
 <form method="POST" action="{{ url_for('edit_rca', capa_id=issue.capa_id) }}">
   <div class="mb-3 p-3 border rounded bg-light">
     <h5>Saran AI:</h5>
@@ -395,7 +404,12 @@
   {% if issue.status in ['Action Pending', 'Evidence Pending', 'Closed'] and issue.action_plan %} {# Check status and if
   action plan exists #}
   {% set ap_data = issue.action_plan.ai_suggested_actions_json | fromjson %}
-  <form method="POST" action="{{ url_for('edit_action_plan', capa_id=issue.capa_id) }}">
+  {% if issue.status == 'Closed' %}
+<div class="alert alert-warning" role="alert">
+  <i class="fas fa-lock"></i> CAPA sudah ditutup. Action Plan tidak dapat diedit lagi.
+</div>
+{% endif %}
+<form method="POST" action="{{ url_for('edit_action_plan', capa_id=issue.capa_id) }}">
     <div class="mb-3 p-3 border rounded bg-light">
       <h5>Saran AI:</h5>
       {% if ap_data.error %}
@@ -504,7 +518,7 @@
           {% endif %}
           <div class="action-item mb-3 border p-3 rounded position-relative">
             <button type="button" class="btn btn-sm btn-danger position-absolute end-0 top-0 m-2 delete-action"
-              title="Hapus"><i class="fas fa-trash"></i></button>
+              title="Hapus" {% if issue.status == 'Closed' %}style="display: none;"{% endif %}><i class="fas fa-trash"></i></button>
             <div class="row">
               <div class="col-12">
                 <div class="mb-2">
@@ -540,9 +554,7 @@
           {% endfor %}
         </div>
         <div class="text-center mt-2">
-          <button type="button" class="btn btn-sm btn-success add-temp-action"><i class="fas fa-plus"></i> Tambah
-            Tindakan
-            Sementara</button>
+          <button type="button" class="btn btn-sm btn-success add-temp-action" {% if issue.status == 'Closed' %}style="display: none;"{% endif %}><i class="fas fa-plus"></i> Tambah Tindakan Sementara</button>
         </div>
       </div>
     </div>
@@ -572,7 +584,7 @@
           {% endif %}
           <div class="action-item mb-3 border p-3 rounded position-relative">
             <button type="button" class="btn btn-sm btn-danger position-absolute end-0 top-0 m-2 delete-action"
-              title="Hapus"><i class="fas fa-trash"></i></button>
+              title="Hapus" {% if issue.status == 'Closed' %}style="display: none;"{% endif %}><i class="fas fa-trash"></i></button>
             <div class="row">
               <div class="col-12">
                 <div class="mb-2">
@@ -609,7 +621,7 @@
           {% else %}
           <div class="action-item mb-3 border p-3 rounded position-relative">
             <button type="button" class="btn btn-sm btn-danger position-absolute end-0 top-0 m-2 delete-action"
-              title="Hapus"><i class="fas fa-trash"></i></button>
+              title="Hapus" {% if issue.status == 'Closed' %}style="display: none;"{% endif %}><i class="fas fa-trash"></i></button>
             <div class="row">
               <div class="col-12">
                 <div class="mb-2">
@@ -646,14 +658,14 @@
           {% endif %}
         </div>
         <div class="text-center mt-2">
-          <button type="button" class="btn btn-sm btn-success add-prev-action"><i class="fas fa-plus"></i> Tambah
+          <button type="button" class="btn btn-sm btn-success add-prev-action" {% if issue.status == 'Closed' %}style="display: none;"{% endif %}><i class="fas fa-plus"></i> Tambah
             Tindakan
             Pencegahan</button>
         </div>
       </div>
     </div>
 
-    <button type="submit" class="btn btn-primary" id="submit-action-btn">Kirim Rencana Tindakan</button>
+    <button type="submit" class="btn btn-primary" id="submit-action-btn" {% if issue.status == 'Closed' %}disabled{% endif %}>{% if issue.status == 'Closed' %}Action Plan Terkunci{% else %}Kirim Rencana Tindakan{% endif %}</button>
 
   </form>
   {% else %}
@@ -729,6 +741,31 @@
               <p><strong>Tenggat Waktu:</strong> {{ action.due_date }}</p>
               <p><strong>Status:</strong> {{ 'Selesai' if action.completed else 'Pending' }}</p>
 
+              {% if action.completed %}
+              <!-- Tampilkan bukti untuk tindakan yang sudah selesai -->
+              <div class="mt-3 border p-3 rounded">
+                <h6 class="mb-3">Bukti Tindakan</h6>
+                {% set evidence_exists = false %}
+                {% for ev in issue.evidence if ev.action_type == 'temporary' and ev.action_index == i %}
+                  {% set evidence_exists = true %}
+                  <div class="card mb-3">
+                    <div class="evidence-image-container">
+                      <img src="{{ url_for('uploaded_file', filename=ev.evidence_photo_path) }}" class="evidence-image card-img-top" alt="Bukti Foto">
+                    </div>
+                    <div class="card-body">
+                      {% if ev.evidence_description %}
+                      <p class="card-text">{{ ev.evidence_description | nl2br }}</p>
+                      {% endif %}
+                      <p class="text-muted small">Diajukan pada: {{ ev.evidence_submission_timestamp.strftime('%Y-%m-%d %H:%M') }}</p>
+                    </div>
+                  </div>
+                {% endfor %}
+                
+                {% if not evidence_exists %}
+                  <div class="alert alert-info">Tindakan ini sudah ditandai selesai, tetapi belum ada bukti foto yang diunggah.</div>
+                {% endif %}
+              </div>
+              {% else %}
               <!-- Formulir pengajuan bukti untuk tindakan ini -->
               <form method="POST" action="{{ url_for('submit_evidence', capa_id=issue.capa_id) }}"
                 class="mt-3 border p-3 rounded" enctype="multipart/form-data">
@@ -747,6 +784,7 @@
                 </div>
                 <button type="submit" class="btn btn-primary">Kirim Bukti</button>
               </form>
+              {% endif %}
             </div>
           </div>
         </div>
@@ -780,6 +818,31 @@
               <p><strong>Tenggat Waktu:</strong> {{ action.due_date }}</p>
               <p><strong>Status:</strong> {{ 'Selesai' if action.completed else 'Pending' }}</p>
 
+              {% if action.completed %}
+              <!-- Tampilkan bukti untuk tindakan yang sudah selesai -->
+              <div class="mt-3 border p-3 rounded">
+                <h6 class="mb-3">Bukti Tindakan</h6>
+                {% set evidence_exists = false %}
+                {% for ev in issue.evidence if ev.action_type == 'preventive' and ev.action_index == i %}
+                  {% set evidence_exists = true %}
+                  <div class="card mb-3">
+                    <div class="evidence-image-container">
+                      <img src="{{ url_for('uploaded_file', filename=ev.evidence_photo_path) }}" class="evidence-image card-img-top" alt="Bukti Foto">
+                    </div>
+                    <div class="card-body">
+                      {% if ev.evidence_description %}
+                      <p class="card-text">{{ ev.evidence_description | nl2br }}</p>
+                      {% endif %}
+                      <p class="text-muted small">Diajukan pada: {{ ev.evidence_submission_timestamp.strftime('%Y-%m-%d %H:%M') }}</p>
+                    </div>
+                  </div>
+                {% endfor %}
+                
+                {% if not evidence_exists %}
+                  <div class="alert alert-info">Tindakan ini sudah ditandai selesai, tetapi belum ada bukti foto yang diunggah.</div>
+                {% endif %}
+              </div>
+              {% else %}
               <!-- Formulir pengajuan bukti untuk tindakan ini -->
               <form method="POST" action="{{ url_for('submit_evidence', capa_id=issue.capa_id) }}"
                 class="mt-3 border p-3 rounded" enctype="multipart/form-data">
@@ -798,6 +861,7 @@
                 </div>
                 <button type="submit" class="btn btn-primary">Kirim Bukti</button>
               </form>
+              {% endif %}
             </div>
           </div>
         </div>
@@ -916,9 +980,17 @@
   {% if issue.status == 'Evidence Pending' %}
   <!-- Tombol untuk menutup CAPA jika semua bukti telah diajukan -->
   <div class="text-center mt-4">
-    <form method="POST" action="{{ url_for('close_capa', capa_id=issue.capa_id) }}">
+    {% if issue.status != 'Closed' %}
+<form method="POST" action="{{ url_for('close_capa', capa_id=issue.capa_id) }}">
       <button type="submit" class="btn btn-success btn-lg">Tutup CAPA (Semua Tindakan Sudah Dibuktikan)</button>
-    </form>
+</form>
+{% else %}
+<div class="alert alert-success text-center">
+  <i class="fas fa-check-circle fa-2x mb-2"></i>
+  <h4>CAPA Sudah Ditutup</h4>
+  <p>Semua proses untuk CAPA ini telah selesai dan hanya dapat dilihat (read-only).</p>
+</div>
+{% endif %}
   </div>
   {% endif %}
   {% endif %}
@@ -1029,6 +1101,36 @@
 
     // Script untuk menambah dan menghapus action plan
     document.addEventListener('DOMContentLoaded', function () {
+      // Make fields read-only if CAPA is closed
+      if ('{{ issue.status }}' === 'Closed') {
+        // Make all input elements read-only
+        document.querySelectorAll('input, textarea, select').forEach(el => {
+          if (!el.classList.contains('d-none')) {
+            el.setAttribute('readonly', 'readonly');
+            // Add a visual indicator that fields are read-only
+            el.style.backgroundColor = '#f8f9fa';
+            el.style.borderColor = '#dee2e6';
+            el.classList.add('text-muted');
+          }
+        });
+        // Hide add/delete buttons
+        document.querySelectorAll('.delete-action, .add-temp-action, .add-prev-action').forEach(btn => {
+          btn.style.display = 'none';
+        });
+        
+        // Update form labels to indicate read-only status
+        document.querySelectorAll('label').forEach(label => {
+          if (!label.querySelector('.read-only-badge')) {
+            const badge = document.createElement('span');
+            badge.className = 'badge bg-secondary ms-2 read-only-badge';
+            badge.innerHTML = 'Read-only';
+            badge.style.fontSize = '0.7em';
+            badge.style.verticalAlign = 'middle';
+            label.appendChild(badge);
+          }
+        });
+      }
+      
       // Template untuk tindakan sementara baru
       const tempActionTemplate = `
       <div class="action-item mb-3 border p-3 rounded position-relative">

@@ -3,6 +3,7 @@ from datetime import datetime
 import google.generativeai as genai
 from models import db, RootCause, ActionPlan
 from config import GOOGLE_API_KEY
+from ai_learning import get_relevant_rca_knowledge, get_relevant_action_plan_knowledge
 
 # Initialize Gemini AI
 if not GOOGLE_API_KEY:
@@ -36,6 +37,13 @@ def trigger_rca_analysis(capa_id):
     gemba_data = issue.gemba_investigation
     if not gemba_data:
         print(f"Warning: No Gemba investigation found for CAPA ID {capa_id}. This is unusual.")
+        
+    # Retrieve relevant knowledge from previous RCAs
+    relevant_knowledge = get_relevant_rca_knowledge(
+        issue_description=issue.issue_description,
+        gemba_findings=gemba_data.findings if gemba_data else None,
+        limit=3  # Get top 3 most relevant previous RCAs
+    )
 
     # --- Prepare Prompt in Bahasa Indonesia ---
     prompt = f"""
@@ -61,12 +69,48 @@ def trigger_rca_analysis(capa_id):
       "why4": "Alasan tingkat keempat",
       "root_cause": "Akar masalah yang mendasar"
     }}
+    """
+    
+    # Add knowledge from previous relevant RCAs if available
+    if relevant_knowledge:
+        prompt += """
+        
+    PEMBELAJARAN DARI RCA SEBELUMNYA:
+    Berikut adalah beberapa analisis Root Cause sebelumnya yang mungkin relevan. Gunakan ini sebagai referensi tambahan untuk memperbaiki analisis Anda, tetapi tetap fokus pada masalah saat ini:
+    """
+        
+        for i, knowledge in enumerate(relevant_knowledge, 1):
+            try:
+                issue_context = knowledge.get('issue_context', {})
+                user_adjustment = knowledge.get('user_adjustment', {})
+                
+                # Add formatted knowledge from previous RCAs
+                prompt += f"""
+    Contoh {i}:
+    Deskripsi masalah sebelumnya: {issue_context.get('issue_description', 'Tidak tersedia')}
+    Why 1: {user_adjustment.get('why1', 'Tidak tersedia')}
+    Why 2: {user_adjustment.get('why2', 'Tidak tersedia')}
+    Why 3: {user_adjustment.get('why3', 'Tidak tersedia')}
+    Why 4: {user_adjustment.get('why4', 'Tidak tersedia')}
+    Akar masalah: {user_adjustment.get('root_cause', 'Tidak tersedia')}
+                """
+            except:
+                # Skip if there's an issue with this knowledge entry
+                continue
+    
+    prompt += """
 
     Lakukan analisis 5 Why berdasarkan Detail Masalah yang diberikan DAN hasil investigasi Gemba dari lapangan.
     PENTING: Gunakan informasi hasil Gemba (terutama akar masalah yang dicurigai) sebagai masukan utama untuk analisis Anda,
     tapi pastikan bahwa Anda melakukan analisis 5 Why yang logis dan mendalam.
     Berikan semua hasil dalam Bahasa Indonesia.
     """
+    
+    # Log the knowledge enhancement
+    if relevant_knowledge:
+        print(f"Enhanced RCA prompt with {len(relevant_knowledge)} relevant knowledge entries.")
+    else:
+        print("No relevant prior knowledge found for enhancing RCA.")
 
     try:
         print(f"Sending prompt to Gemini for CAPA ID {capa_id}...")
@@ -136,6 +180,13 @@ def trigger_action_plan_recommendation(capa_id):
         return
 
     final_rc = issue.root_cause.user_adjusted_root_cause
+    
+    # Retrieve relevant knowledge from previous action plans
+    relevant_knowledge = get_relevant_action_plan_knowledge(
+        issue_description=issue.issue_description,
+        root_cause=final_rc,
+        limit=3  # Get top 3 most relevant previous action plans
+    )
 
     # --- Prepare Prompt in Bahasa Indonesia ---
     prompt = f"""
@@ -168,6 +219,53 @@ def trigger_action_plan_recommendation(capa_id):
         }}
       ]
     }}
+    """
+    
+    # Add knowledge from previous relevant action plans if available
+    if relevant_knowledge:
+        prompt += """
+        
+    PEMBELAJARAN DARI RENCANA TINDAKAN SEBELUMNYA:
+    Berikut adalah beberapa rencana tindakan sebelumnya yang mungkin relevan. Gunakan ini sebagai referensi tambahan untuk memperbaiki rekomendasi Anda, tetapi tetap fokus pada masalah saat ini:
+    """
+        
+        for i, knowledge in enumerate(relevant_knowledge, 1):
+            try:
+                issue_context = knowledge.get('issue_context', {})
+                user_adjustment = knowledge.get('user_adjustment', {})
+                
+                # Add example temporary actions
+                prompt += f"""
+    Contoh {i} untuk masalah: {issue_context.get('issue_description', 'Tidak tersedia')}
+    Akar masalah: {issue_context.get('root_cause', 'Tidak tersedia')}
+    
+    Tindakan Sementara yang telah disesuaikan oleh pengguna:
+    """
+                
+                # Add temporary actions
+                temp_actions = user_adjustment.get('temporary_actions', [])
+                for j, action in enumerate(temp_actions, 1):
+                    if isinstance(action, dict) and 'action_text' in action:
+                        prompt += f"\n    {j}. {action['action_text']}"
+                
+                # Add example preventive actions
+                prompt += f"""
+    
+    Tindakan Pencegahan yang telah disesuaikan oleh pengguna:
+    """
+                
+                # Add preventive actions
+                prev_actions = user_adjustment.get('preventive_actions', [])
+                for j, action in enumerate(prev_actions, 1):
+                    if isinstance(action, dict) and 'action_text' in action:
+                        prompt += f"\n    {j}. {action['action_text']}"
+                        
+                prompt += "\n"
+            except:
+                # Skip if there's an issue with this knowledge entry
+                continue
+    
+    prompt += """
     
     Perhatikan! Berikan HANYA langkah tindakan untuk setiap item, tanpa indikator keberhasilan, penanggung jawab, atau deadline - itu akan ditambahkan oleh pengguna aplikasi.
     
@@ -175,6 +273,12 @@ def trigger_action_plan_recommendation(capa_id):
     Buat 3-4 langkah tindakan sementara dan 2-3 langkah tindakan pencegahan yang spesifik dan relevan dengan masalah tersebut.
     Pastikan semuanya dalam Bahasa Indonesia.
     """
+    
+    # Log the knowledge enhancement
+    if relevant_knowledge:
+        print(f"Enhanced Action Plan prompt with {len(relevant_knowledge)} relevant knowledge entries.")
+    else:
+        print("No relevant prior knowledge found for enhancing Action Plan.")
 
     try:
         print(f"Sending Action Plan prompt to Gemini for CAPA ID {capa_id}...")

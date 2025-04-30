@@ -1,0 +1,12 @@
+.evidence-image-container {
+  max-height: 250px;
+  overflow: hidden;
+}
+
+.evidence-image {
+  object-fit: contain;
+  max-height: 250px;
+  width: 100%;
+  border-top-left-radius: 3px;
+  border-top-right-radius: 3px;
+}
