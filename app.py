@@ -30,7 +30,7 @@ else:
 # Select the model (adjust if needed, check Gemini documentation for available models)
 # Using a model suitable for complex reasoning like 5 Why
 # Or 'gemini-pro' etc.
-gemini_model = genai.GenerativeModel('gemini-1.5-flash')
+gemini_model = genai.GenerativeModel('models/gemini-2.5-flash-preview-04-17')
 
 
 # --- App Configuration ---
