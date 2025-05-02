@@ -405,11 +405,11 @@
   action plan exists #}
   {% set ap_data = issue.action_plan.ai_suggested_actions_json | fromjson %}
   {% if issue.status == 'Closed' %}
-<div class="alert alert-warning" role="alert">
-  <i class="fas fa-lock"></i> CAPA sudah ditutup. Action Plan tidak dapat diedit lagi.
-</div>
-{% endif %}
-<form method="POST" action="{{ url_for('edit_action_plan', capa_id=issue.capa_id) }}">
+  <div class="alert alert-warning" role="alert">
+    <i class="fas fa-lock"></i> CAPA sudah ditutup. Action Plan tidak dapat diedit lagi.
+  </div>
+  {% endif %}
+  <form method="POST" action="{{ url_for('edit_action_plan', capa_id=issue.capa_id) }}">
     <div class="mb-3 p-3 border rounded bg-light">
       <h5>Saran AI:</h5>
       {% if ap_data.error %}
@@ -518,7 +518,8 @@
           {% endif %}
           <div class="action-item mb-3 border p-3 rounded position-relative">
             <button type="button" class="btn btn-sm btn-danger position-absolute end-0 top-0 m-2 delete-action"
-              title="Hapus" {% if issue.status == 'Closed' %}style="display: none;"{% endif %}><i class="fas fa-trash"></i></button>
+              title="Hapus" {% if issue.status=='Closed' %}style="display: none;" {% endif %}><i
+                class="fas fa-trash"></i></button>
             <div class="row">
               <div class="col-12">
                 <div class="mb-2">
@@ -554,7 +555,8 @@
           {% endfor %}
         </div>
         <div class="text-center mt-2">
-          <button type="button" class="btn btn-sm btn-success add-temp-action" {% if issue.status == 'Closed' %}style="display: none;"{% endif %}><i class="fas fa-plus"></i> Tambah Tindakan Sementara</button>
+          <button type="button" class="btn btn-sm btn-success add-temp-action" {% if issue.status=='Closed'
+            %}style="display: none;" {% endif %}><i class="fas fa-plus"></i> Tambah Tindakan Sementara</button>
         </div>
       </div>
     </div>
@@ -584,7 +586,8 @@
           {% endif %}
           <div class="action-item mb-3 border p-3 rounded position-relative">
             <button type="button" class="btn btn-sm btn-danger position-absolute end-0 top-0 m-2 delete-action"
-              title="Hapus" {% if issue.status == 'Closed' %}style="display: none;"{% endif %}><i class="fas fa-trash"></i></button>
+              title="Hapus" {% if issue.status=='Closed' %}style="display: none;" {% endif %}><i
+                class="fas fa-trash"></i></button>
             <div class="row">
               <div class="col-12">
                 <div class="mb-2">
@@ -621,7 +624,8 @@
           {% else %}
           <div class="action-item mb-3 border p-3 rounded position-relative">
             <button type="button" class="btn btn-sm btn-danger position-absolute end-0 top-0 m-2 delete-action"
-              title="Hapus" {% if issue.status == 'Closed' %}style="display: none;"{% endif %}><i class="fas fa-trash"></i></button>
+              title="Hapus" {% if issue.status=='Closed' %}style="display: none;" {% endif %}><i
+                class="fas fa-trash"></i></button>
             <div class="row">
               <div class="col-12">
                 <div class="mb-2">
@@ -658,14 +662,16 @@
           {% endif %}
         </div>
         <div class="text-center mt-2">
-          <button type="button" class="btn btn-sm btn-success add-prev-action" {% if issue.status == 'Closed' %}style="display: none;"{% endif %}><i class="fas fa-plus"></i> Tambah
+          <button type="button" class="btn btn-sm btn-success add-prev-action" {% if issue.status=='Closed'
+            %}style="display: none;" {% endif %}><i class="fas fa-plus"></i> Tambah
             Tindakan
             Pencegahan</button>
         </div>
       </div>
     </div>
 
-    <button type="submit" class="btn btn-primary" id="submit-action-btn" {% if issue.status == 'Closed' %}disabled{% endif %}>{% if issue.status == 'Closed' %}Action Plan Terkunci{% else %}Kirim Rencana Tindakan{% endif %}</button>
+    <button type="submit" class="btn btn-primary" id="submit-action-btn" {% if issue.status=='Closed' %}disabled{% endif
+      %}>{% if issue.status == 'Closed' %}Action Plan Terkunci{% else %}Kirim Rencana Tindakan{% endif %}</button>
 
   </form>
   {% else %}
@@ -747,22 +753,30 @@
                 <h6 class="mb-3">Bukti Tindakan</h6>
                 {% set evidence_exists = false %}
                 {% for ev in issue.evidence if ev.action_type == 'temporary' and ev.action_index == i %}
-                  {% set evidence_exists = true %}
-                  <div class="card mb-3">
-                    <div class="evidence-image-container">
-                      <img src="{{ url_for('uploaded_file', filename=ev.evidence_photo_path) }}" class="evidence-image card-img-top evidence-thumbnail" alt="Bukti Foto" style="width: 100px; height: 100px; object-fit: contain; background: #f8f9fa; cursor: zoom-in; border: 1px solid #ddd;" data-bs-toggle="modal" data-bs-target="#evidenceModal" data-img-src="{{ url_for('uploaded_file', filename=ev.evidence_photo_path) }}" data-img-desc="{{ ev.evidence_description|default('')|e }}" data-img-date="{{ ev.evidence_submission_timestamp.strftime('%Y-%m-%d %H:%M') }}">
-                    </div>
-                    <div class="card-body">
-                      {% if ev.evidence_description %}
-                      <p class="card-text">{{ ev.evidence_description | nl2br }}</p>
-                      {% endif %}
-                      <p class="text-muted small">Diajukan pada: {{ ev.evidence_submission_timestamp.strftime('%Y-%m-%d %H:%M') }}</p>
-                    </div>
+                {% set evidence_exists = true %}
+                <div class="card mb-3">
+                  <div class="evidence-image-container">
+                    <img src="{{ url_for('uploaded_file', filename=ev.evidence_photo_path) }}"
+                      class="evidence-image card-img-top evidence-thumbnail" alt="Bukti Foto"
+                      style="width: 100px; height: 100px; object-fit: contain; background: #f8f9fa; cursor: zoom-in; border: 1px solid #ddd;"
+                      data-bs-toggle="modal" data-bs-target="#evidenceModal"
+                      data-img-src="{{ url_for('uploaded_file', filename=ev.evidence_photo_path) }}"
+                      data-img-desc="{{ ev.evidence_description|default('')|e }}"
+                      data-img-date="{{ ev.evidence_submission_timestamp.strftime('%Y-%m-%d %H:%M') }}">
                   </div>
+                  <div class="card-body">
+                    {% if ev.evidence_description %}
+                    <p class="card-text">{{ ev.evidence_description | nl2br }}</p>
+                    {% endif %}
+                    <p class="text-muted small">Diajukan pada: {{ ev.evidence_submission_timestamp.strftime('%Y-%m-%d
+                      %H:%M') }}</p>
+                  </div>
+                </div>
                 {% endfor %}
-                
+
                 {% if not evidence_exists %}
-                  <div class="alert alert-info">Tindakan ini sudah ditandai selesai, tetapi belum ada bukti foto yang diunggah.</div>
+                <div class="alert alert-info">Tindakan ini sudah ditandai selesai, tetapi belum ada bukti foto yang
+                  diunggah.</div>
                 {% endif %}
               </div>
               {% else %}
@@ -824,22 +838,30 @@
                 <h6 class="mb-3">Bukti Tindakan</h6>
                 {% set evidence_exists = false %}
                 {% for ev in issue.evidence if ev.action_type == 'preventive' and ev.action_index == i %}
-                  {% set evidence_exists = true %}
-                  <div class="card mb-3">
-                    <div class="evidence-image-container">
-                      <img src="{{ url_for('uploaded_file', filename=ev.evidence_photo_path) }}" class="evidence-image card-img-top evidence-thumbnail" alt="Bukti Foto" style="width: 100px; height: 100px; object-fit: contain; background: #f8f9fa; cursor: zoom-in; border: 1px solid #ddd;" data-bs-toggle="modal" data-bs-target="#evidenceModal" data-img-src="{{ url_for('uploaded_file', filename=ev.evidence_photo_path) }}" data-img-desc="{{ ev.evidence_description|default('')|e }}" data-img-date="{{ ev.evidence_submission_timestamp.strftime('%Y-%m-%d %H:%M') }}">
-                    </div>
-                    <div class="card-body">
-                      {% if ev.evidence_description %}
-                      <p class="card-text">{{ ev.evidence_description | nl2br }}</p>
-                      {% endif %}
-                      <p class="text-muted small">Diajukan pada: {{ ev.evidence_submission_timestamp.strftime('%Y-%m-%d %H:%M') }}</p>
-                    </div>
+                {% set evidence_exists = true %}
+                <div class="card mb-3">
+                  <div class="evidence-image-container">
+                    <img src="{{ url_for('uploaded_file', filename=ev.evidence_photo_path) }}"
+                      class="evidence-image card-img-top evidence-thumbnail" alt="Bukti Foto"
+                      style="width: 100px; height: 100px; object-fit: contain; background: #f8f9fa; cursor: zoom-in; border: 1px solid #ddd;"
+                      data-bs-toggle="modal" data-bs-target="#evidenceModal"
+                      data-img-src="{{ url_for('uploaded_file', filename=ev.evidence_photo_path) }}"
+                      data-img-desc="{{ ev.evidence_description|default('')|e }}"
+                      data-img-date="{{ ev.evidence_submission_timestamp.strftime('%Y-%m-%d %H:%M') }}">
                   </div>
+                  <div class="card-body">
+                    {% if ev.evidence_description %}
+                    <p class="card-text">{{ ev.evidence_description | nl2br }}</p>
+                    {% endif %}
+                    <p class="text-muted small">Diajukan pada: {{ ev.evidence_submission_timestamp.strftime('%Y-%m-%d
+                      %H:%M') }}</p>
+                  </div>
+                </div>
                 {% endfor %}
-                
+
                 {% if not evidence_exists %}
-                  <div class="alert alert-info">Tindakan ini sudah ditandai selesai, tetapi belum ada bukti foto yang diunggah.</div>
+                <div class="alert alert-info">Tindakan ini sudah ditandai selesai, tetapi belum ada bukti foto yang
+                  diunggah.</div>
                 {% endif %}
               </div>
               {% else %}
@@ -887,168 +909,69 @@
   </div>
   {% endif %}
 
-  {# Display existing evidence #}
-  {% if issue.evidence %}
-  <h5 class="mt-4">Bukti yang Diajukan:</h5>
-
-  <!-- Tab untuk jenis bukti -->
-  <ul class="nav nav-tabs mb-3" id="evidence-display-tabs" role="tablist">
-    <li class="nav-item" role="presentation">
-      <button class="nav-link active" id="temp-evidence-tab" data-bs-toggle="tab" data-bs-target="#temp-evidence"
-        type="button" role="tab" aria-controls="temp-evidence" aria-selected="true">Bukti Tindakan Sementara</button>
-    </li>
-    <li class="nav-item" role="presentation">
-      <button class="nav-link" id="prev-evidence-tab" data-bs-toggle="tab" data-bs-target="#prev-evidence" type="button"
-        role="tab" aria-controls="prev-evidence" aria-selected="false">Bukti Tindakan Pencegahan</button>
-    </li>
-    <!-- Removed Bukti Lainnya tab -->
-  </ul>
-
-  <!-- Konten tab -->
-  <div class="tab-content" id="evidence-display-tabs-content">
-    <!-- Bukti tindakan sementara -->
-    <div class="tab-pane fade show active" id="temp-evidence" role="tabpanel" aria-labelledby="temp-evidence-tab">
-      <div class="row">
-        {% set temp_evidence_exists = false %}
-        {% for ev in issue.evidence if ev.action_type == 'temporary' %}
-        {% set temp_evidence_exists = true %}
-        <div class="col-md-4 mb-3">
-          <div class="card">
-            <img src="{{ url_for('uploaded_file', filename=ev.evidence_photo_path) }}" class="card-img-top"
-              alt="Evidence Photo {{ ev.evidence_id }}">
-            <div class="card-body">
-              {% if issue.action_plan and issue.action_plan.user_adjusted_actions_json %}
-              {% set adjusted_actions = issue.action_plan.user_adjusted_actions_json | fromjson %}
-              {% if ev.action_index is not none and ev.action_index < adjusted_actions.temp_actions|length %} <p
-                class="card-text"><strong>Tindakan:</strong> {{
-                adjusted_actions.temp_actions[ev.action_index].action_text|truncate(50) }}</p>
-                {% endif %}
-                {% endif %}
-                {% if ev.evidence_description %}
-                <p class="card-text">{{ ev.evidence_description | nl2br }}</p>
-                {% endif %}
-                <p class="card-text"><small class="text-muted">Diajukan: {{
-                    ev.evidence_submission_timestamp.strftime('%Y-%m-%d %H:%M') }}</small></p>
-            </div>
-          </div>
-        </div>
-        {% endfor %}
-
-        {% if not temp_evidence_exists %}
-        <div class="alert alert-info">Belum ada bukti untuk tindakan sementara.</div>
-        {% endif %}
-      </div>
-    </div>
-
-    <!-- Bukti tindakan pencegahan -->
-    <div class="tab-pane fade" id="prev-evidence" role="tabpanel" aria-labelledby="prev-evidence-tab">
-      <div class="row">
-        {% set prev_evidence_exists = false %}
-        {% for ev in issue.evidence if ev.action_type == 'preventive' %}
-        {% set prev_evidence_exists = true %}
-        <div class="col-md-4 mb-3">
-          <div class="card">
-            <img src="{{ url_for('uploaded_file', filename=ev.evidence_photo_path) }}" class="card-img-top"
-              alt="Evidence Photo {{ ev.evidence_id }}">
-            <div class="card-body">
-              {% if issue.action_plan and issue.action_plan.user_adjusted_actions_json %}
-              {% set adjusted_actions = issue.action_plan.user_adjusted_actions_json | fromjson %}
-              {% if ev.action_index is not none and ev.action_index < adjusted_actions.prev_actions|length %} <p
-                class="card-text"><strong>Tindakan:</strong> {{
-                adjusted_actions.prev_actions[ev.action_index].action_text|truncate(50) }}</p>
-                {% endif %}
-                {% endif %}
-                {% if ev.evidence_description %}
-                <p class="card-text">{{ ev.evidence_description | nl2br }}</p>
-                {% endif %}
-                <p class="card-text"><small class="text-muted">Diajukan: {{
-                    ev.evidence_submission_timestamp.strftime('%Y-%m-%d %H:%M') }}</small></p>
-            </div>
-          </div>
-        </div>
-        {% endfor %}
-
-        {% if not prev_evidence_exists %}
-        <div class="alert alert-info">Belum ada bukti untuk tindakan pencegahan.</div>
-        {% endif %}
-      </div>
-    </div>
-
-    <!-- Removed Bukti Lainnya section -->
-  </div>
-
-  {% if issue.status == 'Evidence Pending' %}
+  {% if issue.status == 'Evidence Pending' and issue.status != 'Closed' %}
   <!-- Tombol untuk menutup CAPA jika semua bukti telah diajukan -->
   <div class="text-center mt-4">
-    {% if issue.status != 'Closed' %}
-<form method="POST" action="{{ url_for('close_capa', capa_id=issue.capa_id) }}">
-      <button type="submit" class="btn btn-success btn-lg">Tutup CAPA (Semua Tindakan Sudah Dibuktikan)</button>
-</form>
-{% else %}
-<div class="alert alert-success text-center">
-  <i class="fas fa-check-circle fa-2x mb-2"></i>
-  <h4>CAPA Sudah Ditutup</h4>
-  <p>Semua proses untuk CAPA ini telah selesai dan hanya dapat dilihat (read-only).</p>
-</div>
-{% endif %}
+    <form method="POST" action="{{ url_for('close_capa', capa_id=issue.capa_id) }}">
+      <button type="submit" class="btn btn-success btn-lg">Tutup CAPA Saya</button>
+    </form>
   </div>
   {% endif %}
-  {% endif %}
-
 
   {% endblock %}
 
   {% block scripts %}
-<!-- Modal for Evidence Image Preview -->
-<div class="modal fade" id="evidenceModal" tabindex="-1" aria-labelledby="evidenceModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="evidenceModalLabel">Bukti Foto</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body text-center">
-        <img src="" id="modalEvidenceImage" alt="Bukti Foto" style="max-width: 100%; max-height: 70vh; box-shadow:0 2px 8px #0002; border-radius:6px; background:#f8f9fa;" />
-<p id="modalEvidenceDesc" class="card-text mt-3"></p>
-<p id="modalEvidenceDate" class="text-muted small"></p>
+  <!-- Modal for Evidence Image Preview -->
+  <div class="modal fade" id="evidenceModal" tabindex="-1" aria-labelledby="evidenceModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="evidenceModalLabel">Bukti Foto</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body text-center">
+          <img src="" id="modalEvidenceImage" alt="Bukti Foto"
+            style="max-width: 100%; max-height: 70vh; box-shadow:0 2px 8px #0002; border-radius:6px; background:#f8f9fa;" />
+          <p id="modalEvidenceDesc" class="card-text mt-3"></p>
+          <p id="modalEvidenceDate" class="text-muted small"></p>
+        </div>
       </div>
     </div>
   </div>
-</div>
-<script>
-  document.addEventListener('DOMContentLoaded', function () {
-    // Modal image preview logic
-    var evidenceModal = document.getElementById('evidenceModal');
-    var modalImg = document.getElementById('modalEvidenceImage');
-    // Delegated event for dynamic content
-    document.body.addEventListener('click', function(e) {
-      if (e.target.classList.contains('evidence-thumbnail')) {
-        var imgSrc = e.target.getAttribute('data-img-src');
-        var imgDesc = e.target.getAttribute('data-img-desc') || '';
-        var imgDate = e.target.getAttribute('data-img-date') || '';
-        modalImg.src = imgSrc;
-        document.getElementById('modalEvidenceDesc').textContent = imgDesc;
-        document.getElementById('modalEvidenceDate').textContent = imgDate ? 'Diajukan pada: ' + imgDate : '';
-        var modal = new bootstrap.Modal(evidenceModal);
-        modal.show();
-      }
-    });
-    // Clear image when modal closed
-    evidenceModal.addEventListener('hidden.bs.modal', function () {
-      modalImg.src = '';
-      document.getElementById('modalEvidenceDesc').textContent = '';
-      document.getElementById('modalEvidenceDate').textContent = '';
-      // Remove any lingering modal-backdrop
-      document.querySelectorAll('.modal-backdrop').forEach(function(el){ el.parentNode.removeChild(el); });
-      // Remove modal-open class from body to restore scroll
-      document.body.classList.remove('modal-open');
-      // Remove overflow:hidden style from body (restore scroll)
-      document.body.style.overflow = '';
-      document.body.style.paddingRight = '';
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      // Modal image preview logic
+      var evidenceModal = document.getElementById('evidenceModal');
+      var modalImg = document.getElementById('modalEvidenceImage');
+      // Delegated event for dynamic content
+      document.body.addEventListener('click', function (e) {
+        if (e.target.classList.contains('evidence-thumbnail')) {
+          var imgSrc = e.target.getAttribute('data-img-src');
+          var imgDesc = e.target.getAttribute('data-img-desc') || '';
+          var imgDate = e.target.getAttribute('data-img-date') || '';
+          modalImg.src = imgSrc;
+          document.getElementById('modalEvidenceDesc').textContent = imgDesc;
+          document.getElementById('modalEvidenceDate').textContent = imgDate ? 'Diajukan pada: ' + imgDate : '';
+          var modal = new bootstrap.Modal(evidenceModal);
+          modal.show();
+        }
+      });
+      // Clear image when modal closed
+      evidenceModal.addEventListener('hidden.bs.modal', function () {
+        modalImg.src = '';
+        document.getElementById('modalEvidenceDesc').textContent = '';
+        document.getElementById('modalEvidenceDate').textContent = '';
+        // Remove any lingering modal-backdrop
+        document.querySelectorAll('.modal-backdrop').forEach(function (el) { el.parentNode.removeChild(el); });
+        // Remove modal-open class from body to restore scroll
+        document.body.classList.remove('modal-open');
+        // Remove overflow:hidden style from body (restore scroll)
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
 
+      });
     });
-  });
-</script>
+  </script>
 
 
 
@@ -1168,7 +1091,7 @@
         document.querySelectorAll('.delete-action, .add-temp-action, .add-prev-action').forEach(btn => {
           btn.style.display = 'none';
         });
-        
+
         // Update form labels to indicate read-only status
         document.querySelectorAll('label').forEach(label => {
           if (!label.querySelector('.read-only-badge')) {
@@ -1181,7 +1104,7 @@
           }
         });
       }
-      
+
       // Template untuk tindakan sementara baru
       const tempActionTemplate = `
       <div class="action-item mb-3 border p-3 rounded position-relative">
