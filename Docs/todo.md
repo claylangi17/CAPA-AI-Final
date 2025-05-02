@@ -20,3 +20,8 @@
 Flow:
 masukin case (Batch, Jumlah reject) -> required untuk gemba (Foto, deskripsi real issue) -> RCA -> Action plan -> evidence
 Nice
+
+prompt untuk revise table ai knowledge:
+"""
+disini saya melihat database ai knowledge based saya itu semua di store dalam satu column yaitu knowledge data, dimana di dalam situ ada terlalu banyak informasi, sehingga saya takutkan ai akan banyak sekali membaca informasi disana sehingga memakai banyak token. saya mau kita bisa query berdasrkan maachine name. 
+"""

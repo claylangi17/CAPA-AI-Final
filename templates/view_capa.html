@@ -750,7 +750,7 @@
                   {% set evidence_exists = true %}
                   <div class="card mb-3">
                     <div class="evidence-image-container">
-                      <img src="{{ url_for('uploaded_file', filename=ev.evidence_photo_path) }}" class="evidence-image card-img-top" alt="Bukti Foto">
+                      <img src="{{ url_for('uploaded_file', filename=ev.evidence_photo_path) }}" class="evidence-image card-img-top evidence-thumbnail" alt="Bukti Foto" style="width: 100px; height: 100px; object-fit: contain; background: #f8f9fa; cursor: zoom-in; border: 1px solid #ddd;" data-bs-toggle="modal" data-bs-target="#evidenceModal" data-img-src="{{ url_for('uploaded_file', filename=ev.evidence_photo_path) }}" data-img-desc="{{ ev.evidence_description|default('')|e }}" data-img-date="{{ ev.evidence_submission_timestamp.strftime('%Y-%m-%d %H:%M') }}">
                     </div>
                     <div class="card-body">
                       {% if ev.evidence_description %}
@@ -827,7 +827,7 @@
                   {% set evidence_exists = true %}
                   <div class="card mb-3">
                     <div class="evidence-image-container">
-                      <img src="{{ url_for('uploaded_file', filename=ev.evidence_photo_path) }}" class="evidence-image card-img-top" alt="Bukti Foto">
+                      <img src="{{ url_for('uploaded_file', filename=ev.evidence_photo_path) }}" class="evidence-image card-img-top evidence-thumbnail" alt="Bukti Foto" style="width: 100px; height: 100px; object-fit: contain; background: #f8f9fa; cursor: zoom-in; border: 1px solid #ddd;" data-bs-toggle="modal" data-bs-target="#evidenceModal" data-img-src="{{ url_for('uploaded_file', filename=ev.evidence_photo_path) }}" data-img-desc="{{ ev.evidence_description|default('')|e }}" data-img-date="{{ ev.evidence_submission_timestamp.strftime('%Y-%m-%d %H:%M') }}">
                     </div>
                     <div class="card-body">
                       {% if ev.evidence_description %}
@@ -999,6 +999,57 @@
   {% endblock %}
 
   {% block scripts %}
+<!-- Modal for Evidence Image Preview -->
+<div class="modal fade" id="evidenceModal" tabindex="-1" aria-labelledby="evidenceModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="evidenceModalLabel">Bukti Foto</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <img src="" id="modalEvidenceImage" alt="Bukti Foto" style="max-width: 100%; max-height: 70vh; box-shadow:0 2px 8px #0002; border-radius:6px; background:#f8f9fa;" />
+<p id="modalEvidenceDesc" class="card-text mt-3"></p>
+<p id="modalEvidenceDate" class="text-muted small"></p>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    // Modal image preview logic
+    var evidenceModal = document.getElementById('evidenceModal');
+    var modalImg = document.getElementById('modalEvidenceImage');
+    // Delegated event for dynamic content
+    document.body.addEventListener('click', function(e) {
+      if (e.target.classList.contains('evidence-thumbnail')) {
+        var imgSrc = e.target.getAttribute('data-img-src');
+        var imgDesc = e.target.getAttribute('data-img-desc') || '';
+        var imgDate = e.target.getAttribute('data-img-date') || '';
+        modalImg.src = imgSrc;
+        document.getElementById('modalEvidenceDesc').textContent = imgDesc;
+        document.getElementById('modalEvidenceDate').textContent = imgDate ? 'Diajukan pada: ' + imgDate : '';
+        var modal = new bootstrap.Modal(evidenceModal);
+        modal.show();
+      }
+    });
+    // Clear image when modal closed
+    evidenceModal.addEventListener('hidden.bs.modal', function () {
+      modalImg.src = '';
+      document.getElementById('modalEvidenceDesc').textContent = '';
+      document.getElementById('modalEvidenceDate').textContent = '';
+      // Remove any lingering modal-backdrop
+      document.querySelectorAll('.modal-backdrop').forEach(function(el){ el.parentNode.removeChild(el); });
+      // Remove modal-open class from body to restore scroll
+      document.body.classList.remove('modal-open');
+      // Remove overflow:hidden style from body (restore scroll)
+      document.body.style.overflow = '';
+      document.body.style.paddingRight = '';
+
+    });
+  });
+</script>
+
 
 
   {% if issue.status == 'RCA Pending' or issue.status == 'Action Pending' %}

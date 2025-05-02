@@ -10,3 +10,17 @@
   border-top-left-radius: 3px;
   border-top-right-radius: 3px;
 }
+
+.evidence-thumbnail {
+  width: 100px !important;
+  height: 100px !important;
+  object-fit: cover !important;
+  cursor: pointer;
+}
+
+#modalEvidenceImage {
+  max-width: 100%;
+  max-height: 70vh;
+  display: block;
+  margin: 0 auto;
+}
