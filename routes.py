@@ -22,39 +22,40 @@ def register_routes(app):
     def gemba_investigation(capa_id):
         # Get the CAPA issue
         issue = CapaIssue.query.get_or_404(capa_id)
-        
+
         # Check if CAPA is closed
         if issue.status == 'Closed':
-            flash('CAPA sudah ditutup. Tidak dapat melakukan input atau edit lagi.', 'warning')
+            flash(
+                'CAPA sudah ditutup. Tidak dapat melakukan input atau edit lagi.', 'warning')
             return redirect(url_for('view_capa', capa_id=capa_id))
-        
+
         # Check if already completed gemba
         if issue.gemba_investigation:
             flash('Gemba investigation already completed for this issue.', 'info')
             return redirect(url_for('view_capa', capa_id=capa_id))
-        
+
         if request.method == 'POST':
             # Get form data with findings and multiple photos
             findings = request.form.get('gemba_findings')
             gemba_photos = request.files.getlist('gemba_photos')
-            
+
             # Basic validation
             if not findings or not gemba_photos:
                 flash('Silakan isi temuan dan unggah minimal satu foto bukti.', 'danger')
                 return render_template('gemba_investigation.html', issue=issue)
-                
+
             # Process and save all photos
             photo_paths = []
             upload_dir = os.path.join(app.config['UPLOAD_FOLDER'])
             os.makedirs(upload_dir, exist_ok=True)
-            
+
             for photo in gemba_photos:
                 if photo and allowed_file(photo.filename):
                     filename = secure_filename(photo.filename)
                     unique_filename = f"gemba_{capa_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}_{filename}"
                     photo.save(os.path.join(upload_dir, unique_filename))
                     photo_paths.append(unique_filename)
-            
+
             # Create new Gemba Investigation record
             new_gemba = GembaInvestigation(
                 capa_id=capa_id,
@@ -62,29 +63,32 @@ def register_routes(app):
             )
             # Set photos using the property setter
             new_gemba.gemba_photos = photo_paths
-            
+
             try:
                 db.session.add(new_gemba)
                 db.session.commit()
-                
+
                 # Update issue status and trigger AI RCA
                 issue.status = 'RCA Pending'
                 db.session.commit()
-                
-                flash('Gemba investigation submitted successfully! Triggering AI Root Cause Analysis...', 'success')
-                
+
+                flash(
+                    'Gemba investigation submitted successfully! Triggering AI Root Cause Analysis...', 'success')
+
                 # Trigger AI RCA with Gemba data
                 try:
                     trigger_rca_analysis(capa_id)
                 except Exception as ai_error:
-                    print(f"Error triggering AI RCA for CAPA ID {capa_id}: {ai_error}")
-                    flash(f'Gemba investigation submitted, but AI Root Cause Analysis failed: {ai_error}', 'warning')
-                
+                    print(
+                        f"Error triggering AI RCA for CAPA ID {capa_id}: {ai_error}")
+                    flash(
+                        f'Gemba investigation submitted, but AI Root Cause Analysis failed: {ai_error}', 'warning')
+
                 return redirect(url_for('view_capa', capa_id=capa_id))
             except Exception as e:
                 db.session.rollback()
                 flash(f'Error saving Gemba investigation: {str(e)}', 'danger')
-                
+
         # GET request or form submission failed
         return render_template('gemba_investigation.html', issue=issue)
 
@@ -174,12 +178,13 @@ def register_routes(app):
     def edit_rca(capa_id):
         issue = CapaIssue.query.options(db.joinedload(
             CapaIssue.root_cause)).get_or_404(capa_id)
-            
+
         # Check if CAPA is closed
         if issue.status == 'Closed':
-            flash('CAPA sudah ditutup. Tidak dapat melakukan input atau edit lagi.', 'warning')
+            flash(
+                'CAPA sudah ditutup. Tidak dapat melakukan input atau edit lagi.', 'warning')
             return redirect(url_for('view_capa', capa_id=capa_id))
-            
+
         rc = issue.root_cause
 
         if not rc:
@@ -206,11 +211,13 @@ def register_routes(app):
             try:
                 learning_success = store_rca_learning(capa_id)
                 if learning_success:
-                    print(f"Successfully stored RCA learning data from CAPA ID {capa_id}")
+                    print(
+                        f"Successfully stored RCA learning data from CAPA ID {capa_id}")
                     # Don't show this message to user to keep UI clean
             except Exception as learning_error:
                 # Log the error but don't show to user to keep UI clean
-                print(f"Error storing RCA learning data for CAPA ID {capa_id}: {learning_error}")
+                print(
+                    f"Error storing RCA learning data for CAPA ID {capa_id}: {learning_error}")
 
             # --- Trigger AI Action Plan Recommendation ---
             try:
@@ -239,61 +246,69 @@ def register_routes(app):
     def edit_action_plan(capa_id):
         issue = CapaIssue.query.options(db.joinedload(
             CapaIssue.action_plan)).get_or_404(capa_id)
-            
+
         # Check if CAPA is closed
         if issue.status == 'Closed':
-            flash('CAPA sudah ditutup. Tidak dapat melakukan input atau edit lagi.', 'warning')
+            flash(
+                'CAPA sudah ditutup. Tidak dapat melakukan input atau edit lagi.', 'warning')
             return redirect(url_for('view_capa', capa_id=capa_id))
-            
+
         ap = issue.action_plan
 
         if not ap:
             flash('Data Rencana Tindakan tidak ditemukan untuk masalah ini.', 'danger')
             return redirect(url_for('view_capa', capa_id=capa_id))
-            
+
         # --- Mengambil data dari form baru ---
         # Temp Actions
         temp_action_texts = request.form.getlist('temp_action_text[]')
-        temp_action_indicators = request.form.getlist('temp_action_indicator[]')
+        temp_action_indicators = request.form.getlist(
+            'temp_action_indicator[]')
         temp_action_pics = request.form.getlist('temp_action_pic[]')
         temp_action_due_dates = request.form.getlist('temp_action_due_date[]')
         temp_action_completed = request.form.getlist('temp_action_completed[]')
 
         # Prev Actions
         prev_action_texts = request.form.getlist('prev_action_text[]')
-        prev_action_indicators = request.form.getlist('prev_action_indicator[]')
+        prev_action_indicators = request.form.getlist(
+            'prev_action_indicator[]')
         prev_action_pics = request.form.getlist('prev_action_pic[]')
         prev_action_due_dates = request.form.getlist('prev_action_due_date[]')
         prev_action_completed = request.form.getlist('prev_action_completed[]')
 
         # Validasi data
         if not temp_action_texts or not prev_action_texts:
-            flash('Silakan isi setidaknya satu tindakan sementara dan tindakan pencegahan.', 'danger')
+            flash(
+                'Silakan isi setidaknya satu tindakan sementara dan tindakan pencegahan.', 'danger')
             return redirect(url_for('view_capa', capa_id=capa_id))
 
         # Check that all items have the required fields
         for i, text in enumerate(temp_action_texts):
             if not text.strip():  # Skip empty items (may happen if JS cleanup fails)
                 continue
-                
+
             if i >= len(temp_action_pics) or not temp_action_pics[i].strip():
-                flash('Setiap tindakan sementara harus memiliki Penanggung Jawab (PIC).', 'danger')
+                flash(
+                    'Setiap tindakan sementara harus memiliki Penanggung Jawab (PIC).', 'danger')
                 return redirect(url_for('view_capa', capa_id=capa_id))
-                
+
             if i >= len(temp_action_due_dates) or not temp_action_due_dates[i].strip():
-                flash('Setiap tindakan sementara harus memiliki Tanggal Jatuh Tempo.', 'danger')
+                flash(
+                    'Setiap tindakan sementara harus memiliki Tanggal Jatuh Tempo.', 'danger')
                 return redirect(url_for('view_capa', capa_id=capa_id))
 
         for i, text in enumerate(prev_action_texts):
             if not text.strip():  # Skip empty items (may happen if JS cleanup fails)
                 continue
-                
+
             if i >= len(prev_action_pics) or not prev_action_pics[i].strip():
-                flash('Setiap tindakan pencegahan harus memiliki Penanggung Jawab (PIC).', 'danger')
+                flash(
+                    'Setiap tindakan pencegahan harus memiliki Penanggung Jawab (PIC).', 'danger')
                 return redirect(url_for('view_capa', capa_id=capa_id))
-                
+
             if i >= len(prev_action_due_dates) or not prev_action_due_dates[i].strip():
-                flash('Setiap tindakan pencegahan harus memiliki Tanggal Jatuh Tempo.', 'danger')
+                flash(
+                    'Setiap tindakan pencegahan harus memiliki Tanggal Jatuh Tempo.', 'danger')
                 return redirect(url_for('view_capa', capa_id=capa_id))
 
         # Menyiapkan struktur data JSON
@@ -302,7 +317,7 @@ def register_routes(app):
             # Skip empty items
             if not text.strip():
                 continue
-                
+
             try:
                 due_date = datetime.strptime(
                     temp_action_due_dates[i], '%Y-%m-%d').date() if i < len(temp_action_due_dates) else None
@@ -328,7 +343,7 @@ def register_routes(app):
             # Skip empty items
             if not text.strip():
                 continue
-                
+
             try:
                 due_date = datetime.strptime(
                     prev_action_due_dates[i], '%Y-%m-%d').date() if i < len(prev_action_due_dates) else None
@@ -383,17 +398,19 @@ def register_routes(app):
 
         try:
             db.session.commit()
-            
+
             # Store the user's action plan adjustment for AI learning
             try:
                 learning_success = store_action_plan_learning(capa_id)
                 if learning_success:
-                    print(f"Successfully stored action plan learning data from CAPA ID {capa_id}")
+                    print(
+                        f"Successfully stored action plan learning data from CAPA ID {capa_id}")
                     # Don't show this message to user to keep UI clean
             except Exception as learning_error:
                 # Log the error but don't show to user to keep UI clean
-                print(f"Error storing action plan learning data for CAPA ID {capa_id}: {learning_error}")
-            
+                print(
+                    f"Error storing action plan learning data for CAPA ID {capa_id}: {learning_error}")
+
             flash('Rencana Tindakan berhasil diajukan!', 'success')
             return redirect(url_for('view_capa', capa_id=capa_id))
         except Exception as e:
@@ -407,9 +424,10 @@ def register_routes(app):
         issue = CapaIssue.query.get_or_404(capa_id)
 
         if issue.status == 'Closed':
-            flash('CAPA sudah ditutup. Tidak dapat melakukan input atau edit lagi.', 'warning')
+            flash(
+                'CAPA sudah ditutup. Tidak dapat melakukan input atau edit lagi.', 'warning')
             return redirect(url_for('view_capa', capa_id=capa_id))
-            
+
         if issue.status != 'Evidence Pending':
             flash(
                 f'Cannot submit evidence for issue in status "{issue.status}".', 'warning')
@@ -432,30 +450,34 @@ def register_routes(app):
 
             # Ambil deskripsi bila ada
             evidence_description = request.form.get('evidence_description', '')
-            
+
             # Ambil informasi tindakan terkait
-            action_type = request.form.get('action_type')  # 'temporary' atau 'preventive'
+            # 'temporary' atau 'preventive'
+            action_type = request.form.get('action_type')
             action_index = request.form.get('action_index')
-            
+
             if action_index and action_index.isdigit():
                 action_index = int(action_index)
-                
+
                 # Periksa apakah tindakan yang akan diberi bukti sudah ditandai sebagai selesai
                 if issue.action_plan and issue.action_plan.user_adjusted_actions_json:
                     try:
-                        action_plan_data = json.loads(issue.action_plan.user_adjusted_actions_json)
-                        
+                        action_plan_data = json.loads(
+                            issue.action_plan.user_adjusted_actions_json)
+
                         # Periksa apakah tindakan yang dipilih sudah selesai
                         if action_type == 'temporary' and len(action_plan_data.get('temp_actions', [])) > action_index:
                             if action_plan_data['temp_actions'][action_index].get('completed', False):
-                                flash('Tindakan ini sudah ditandai selesai. Tidak dapat menambahkan bukti baru.', 'warning')
+                                flash(
+                                    'Tindakan ini sudah ditandai selesai. Tidak dapat menambahkan bukti baru.', 'warning')
                                 return redirect(url_for('view_capa', capa_id=capa_id))
                         elif action_type == 'preventive' and len(action_plan_data.get('prev_actions', [])) > action_index:
                             if action_plan_data['prev_actions'][action_index].get('completed', False):
-                                flash('Tindakan ini sudah ditandai selesai. Tidak dapat menambahkan bukti baru.', 'warning')
+                                flash(
+                                    'Tindakan ini sudah ditandai selesai. Tidak dapat menambahkan bukti baru.', 'warning')
                                 return redirect(url_for('view_capa', capa_id=capa_id))
                     except Exception as e:
-                        print(f"Error checking action status: {str(e)}")  
+                        print(f"Error checking action status: {str(e)}")
                         # Biarkan proses berlanjut jika terjadi kesalahan
             else:
                 action_index = None
@@ -475,14 +497,16 @@ def register_routes(app):
             # Perbarui status tindakan jika terkait dengan tindakan tertentu
             if action_type and action_index is not None and issue.action_plan and issue.action_plan.user_adjusted_actions_json:
                 try:
-                    action_plan_data = json.loads(issue.action_plan.user_adjusted_actions_json)
-                    
+                    action_plan_data = json.loads(
+                        issue.action_plan.user_adjusted_actions_json)
+
                     if action_type == 'temporary' and len(action_plan_data.get('temp_actions', [])) > action_index:
                         action_plan_data['temp_actions'][action_index]['completed'] = True
                     elif action_type == 'preventive' and len(action_plan_data.get('prev_actions', [])) > action_index:
                         action_plan_data['prev_actions'][action_index]['completed'] = True
-                    
-                    issue.action_plan.user_adjusted_actions_json = json.dumps(action_plan_data)
+
+                    issue.action_plan.user_adjusted_actions_json = json.dumps(
+                        action_plan_data)
                     db.session.commit()
                 except Exception as e:
                     print(f"Error updating action plan status: {str(e)}")
@@ -492,33 +516,31 @@ def register_routes(app):
             flash('Gagal mengupload bukti. Format file tidak valid.', 'danger')
 
         return redirect(url_for('view_capa', capa_id=capa_id))
-        
+
     @app.route('/close_capa/<int:capa_id>', methods=['POST'])
     def close_capa(capa_id):
         issue = CapaIssue.query.get_or_404(capa_id)
-        
+
         if issue.status != 'Evidence Pending':
             flash('Status CAPA tidak memungkinkan penutupan saat ini.', 'danger')
             return redirect(url_for('view_capa', capa_id=capa_id))
-            
+
         # Pastikan semua tindakan memiliki bukti (opsional)
         if issue.action_plan and issue.action_plan.user_adjusted_actions_json:
-            action_plan_data = json.loads(issue.action_plan.user_adjusted_actions_json)
+            action_plan_data = json.loads(
+                issue.action_plan.user_adjusted_actions_json)
             temp_actions = action_plan_data.get('temp_actions', [])
-            prev_actions = action_plan_data.get('prev_actions', [])
-            
-            # Flag semua tindakan sebagai selesai saat CAPA ditutup
-            for action in temp_actions:
-                action['completed'] = True
-            for action in prev_actions:
-                action['completed'] = True
-                
-            issue.action_plan.user_adjusted_actions_json = json.dumps(action_plan_data)
-        
+            # Removed the logic that automatically flags all actions as completed on close.
+            # The 'completed' status should now only be set when evidence is submitted
+            # or potentially through manual edits if implemented elsewhere.
+            # We still might want to save the JSON if other modifications happened,
+            # but for now, we remove the automatic completion flag.
+            # issue.action_plan.user_adjusted_actions_json = json.dumps(action_plan_data) # Commented out or remove if no other changes needed here
+
         # Update status CAPA
         issue.status = 'Closed'
         db.session.commit()
-        
+
         flash('CAPA telah berhasil ditutup.', 'success')
         return redirect(url_for('view_capa', capa_id=capa_id))
 

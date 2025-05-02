@@ -1,170 +1,519 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta charset="UTF-8">
     <title>Laporan CAPA #{{ issue.capa_id }}</title>
     <style>
-        body { font-family: sans-serif; margin: 20px; }
-        h1, h2, h3 { color: #333; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 15px; }
-        h1 { font-size: 24px; text-align: center; margin-bottom: 30px; }
-        h2 { font-size: 18px; }
-        h3 { font-size: 16px; border-bottom: none; margin-bottom: 10px; color: #444; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: top; }
-        th { background-color: #f2f2f2; font-weight: bold; }
-        .subsection { margin-bottom: 20px; }
-        dl { margin-bottom: 20px; }
-        dt { font-weight: bold; width: 150px; float: left; clear: left; }
-        dd { margin-left: 160px; margin-bottom: 5px; }
-        .section { margin-bottom: 30px; page-break-inside: avoid; }
-        .photo { max-width: 300px; max-height: 300px; display: block; margin-top: 10px; border: 1px solid #ccc; padding: 5px; }
-        .logo { text-align: center; margin-bottom: 20px; } /* Placeholder for logo */
-        .footer { text-align: center; font-size: 10px; color: #777; position: fixed; bottom: 0; width: 100%; } /* Basic footer */
-        .rca-item, .ap-item { margin-bottom: 10px; }
-        .label { font-weight: bold; }
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+        /* Using Poppins for a modern look */
+
+        :root {
+            --primary-color: #4A90E2;
+            /* A nice blue */
+            --secondary-color: #50E3C2;
+            /* A teal accent */
+            --text-color: #4A4A4A;
+            /* Dark grey for text */
+            --heading-color: #2C3E50;
+            /* Darker blue/grey for headings */
+            --background-light: #F7F9FA;
+            --background-white: #FFFFFF;
+            --border-color: #EAEAEA;
+            --card-shadow: 0 6px 12px rgba(44, 62, 80, 0.1);
+            --header-footer-text: #7F8C8D;
+            /* Grey for header/footer */
+        }
+
+        @page {
+            size: A4;
+            margin: 1.5cm;
+            /* Standard margins */
+
+            @top-center {
+                content: "Laporan Tindakan Korektif & Preventif (CAPA)";
+                font-family: 'Poppins', sans-serif;
+                font-size: 9pt;
+                color: var(--header-footer-text);
+                border-bottom: 0.5pt solid var(--border-color);
+                width: 100%;
+                padding-bottom: 5px;
+            }
+
+            @bottom-center {
+                content: "Halaman " counter(page) " dari " counter(pages);
+                font-family: 'Poppins', sans-serif;
+                font-size: 9pt;
+                color: var(--header-footer-text);
+                border-top: 0.5pt solid var(--border-color);
+                width: 100%;
+                padding-top: 5px;
+            }
+        }
+
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--background-light);
+            color: var(--text-color);
+            font-size: 10pt;
+            /* Slightly larger base font size */
+            line-height: 1.6;
+            font-weight: 400;
+        }
+
+        .report-container {
+            /* Removed container styling - relying on @page margins */
+            background-color: var(--background-white);
+            /* Ensure content area is white */
+        }
+
+        h1,
+        h2,
+        h3 {
+            color: var(--heading-color);
+            margin-top: 0;
+            margin-bottom: 0.75em;
+            font-weight: 600;
+            page-break-after: avoid;
+        }
+
+        h1 {
+            /* Report Title */
+            font-size: 22pt;
+            text-align: center;
+            margin-bottom: 1em;
+            color: var(--primary-color);
+            font-weight: 700;
+            border-bottom: 2px solid var(--secondary-color);
+            padding-bottom: 10px;
+            letter-spacing: 1px;
+        }
+
+        h2 {
+            /* Section Titles */
+            font-size: 16pt;
+            margin-top: 1.5em;
+            margin-bottom: 1em;
+            color: var(--primary-color);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 5px;
+            font-weight: 600;
+            page-break-before: avoid;
+        }
+
+        h3 {
+            /* Subsection Titles (e.g., Foto Awal) */
+            font-size: 12pt;
+            margin-bottom: 0.8em;
+            color: var(--heading-color);
+            font-weight: 500;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1.5em;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            page-break-inside: avoid;
+        }
+
+        th,
+        td {
+            border: 1px solid var(--border-color);
+            padding: 8px 10px;
+            /* Adjust padding */
+            text-align: left;
+            vertical-align: top;
+            font-size: 9pt;
+            /* Smaller font for table content */
+        }
+
+        th {
+            background-color: #EBF4FF;
+            /* Lighter blue background */
+            font-weight: 600;
+            color: var(--primary-color);
+            text-transform: uppercase;
+            font-size: 8pt;
+            letter-spacing: 0.5px;
+        }
+
+        tr:nth-child(even) td {
+            /* Subtle stripe */
+            background-color: #F8F9FA;
+        }
+
+        .section {
+            margin-bottom: 2em;
+            padding: 1.5em;
+            background-color: var(--background-white);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            box-shadow: var(--card-shadow);
+            page-break-inside: avoid;
+        }
+
+        .subsection {
+            /* For action plan tables */
+            margin-bottom: 1.5em;
+        }
+
+        .subsection h3 {
+            font-size: 11pt;
+            margin-bottom: 0.5em;
+            padding-bottom: 3px;
+            border-bottom: 1px dotted var(--border-color);
+        }
+
+
+        dl {
+            /* For Detail Masalah */
+            margin-bottom: 1em;
+            padding-left: 0;
+            /* Remove default padding */
+            display: grid;
+            grid-template-columns: 150px auto;
+            /* Label and Value columns */
+            gap: 8px 15px;
+            /* Row and Column gap */
+        }
+
+        dt {
+            font-weight: 600;
+            color: var(--heading-color);
+            grid-column: 1;
+            padding-right: 10px;
+            text-align: right;
+            font-size: 9.5pt;
+        }
+
+        dd {
+            margin-left: 0;
+            /* Override default */
+            grid-column: 2;
+            font-size: 9.5pt;
+            border-left: 2px solid var(--secondary-color);
+            padding-left: 10px;
+        }
+
+        .photo {
+            max-width: 80%;
+            /* Adjust size */
+            height: auto;
+            max-height: 300px;
+            display: block;
+            margin: 10px auto;
+            /* Center photo */
+            border: 3px solid var(--border-color);
+            padding: 5px;
+            border-radius: 4px;
+            background-color: var(--background-light);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .logo-container {
+            /* Changed from .logo */
+            text-align: center;
+            margin-bottom: 1.5em;
+            padding-bottom: 1em;
+            /* border-bottom: 1px solid var(--border-color); */
+        }
+
+        .logo-container img {
+            max-height: 60px;
+            /* Adjust logo size */
+            margin-bottom: 10px;
+        }
+
+        .footer-text {
+            /* For the generated by text */
+            text-align: center;
+            font-size: 8pt;
+            color: var(--header-footer-text);
+            margin-top: 3em;
+            padding-top: 1em;
+            /* border-top: 1px solid var(--border-color); */
+            /* Use @page border */
+        }
+
+        .rca-item {
+            /* 5 Why items */
+            margin-bottom: 10px;
+            padding: 10px 15px;
+            border-left: 4px solid var(--primary-color);
+            background-color: #F8F9FA;
+            border-radius: 4px;
+            font-size: 9.5pt;
+        }
+
+        .rca-item .label {
+            font-weight: 600;
+            color: var(--primary-color);
+            margin-right: 8px;
+            display: inline-block;
+            min-width: 80px;
+            /* Align labels */
+        }
+
+        small {
+            /* Timestamp text */
+            font-size: 8pt;
+            color: #777;
+            display: block;
+            margin-top: 10px;
+            text-align: right;
+        }
+
+        .status-selesai {
+            color: #28A745;
+            /* Green */
+            font-weight: 600;
+        }
+
+        .status-belum {
+            color: #FFC107;
+            /* Amber */
+            font-weight: 600;
+        }
+
+        /* Evidence Block Styling */
+        .evidence-block {
+            margin-bottom: 1.5em;
+            page-break-inside: avoid;
+            border: 1px solid var(--border-color);
+            padding: 1em;
+            border-radius: 5px;
+            background-color: #FDFDFD;
+        }
+
+        .evidence-block p {
+            margin-top: 0.5em;
+            margin-bottom: 0.5em;
+            font-size: 9pt;
+        }
+
+        .evidence-action-link {
+            /* Styling for the linked action text */
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #e9ecef;
+            border-radius: 3px;
+            border-left: 3px solid var(--secondary-color);
+            font-size: 9pt;
+        }
+
+        .evidence-action-link strong {
+            color: var(--heading-color);
+        }
     </style>
 </head>
+
 <body>
 
-    <div class="logo">
-        <!-- Add company logo here if available -->
-        <!-- <img src="/path/to/your/logo.png" alt="SANSICO Logo" style="max-height: 80px;"> -->
-        <h1>Laporan Tindakan Korektif dan Preventif (CAPA)</h1>
-    </div>
+    <div class="report-container">
 
-    <div class="section">
-        <h2>Detail Masalah (CAPA #{{ issue.capa_id }})</h2>
-        <dl>
-            <dt>Pelanggan:</dt>
-            <dd>{{ issue.customer_name }}</dd>
-            <dt>Item Terkait:</dt>
-            <dd>{{ issue.item_involved }}</dd>
-            <dt>Nama Mesin:</dt>
-            <dd>{{ issue.machine_name or 'Tidak Ada' }}</dd>
-            <dt>Nomor Batch:</dt>
-            <dd>{{ issue.batch_number or 'Tidak Ada' }}</dd>
-            <dt>Tanggal Masalah:</dt>
-            <dd>{{ issue.issue_date.strftime('%Y-%m-%d') }}</dd>
-            <dt>Tanggal Pengajuan:</dt>
-            <dd>{{ issue.submission_timestamp.strftime('%Y-%m-%d %H:%M') }}</dd>
-            <dt>Status:</dt>
-            <dd>{{ issue.status }}</dd>
-            <dt>Deskripsi:</dt>
-            <dd>{{ issue.issue_description | nl2br }}</dd>
-        </dl>
-        {% if issue.initial_photo_path %}
-            <h3>Foto Awal:</h3>
-            <img src="{{ url_for('uploaded_file', filename=issue.initial_photo_path, _external=True) }}" class="photo" alt="Initial Issue Photo">
-            <!-- Note: _external=True might be needed for WeasyPrint to resolve local URLs -->
+        <div class="logo-container">
+            <!-- Uncomment and replace with your actual logo path if available -->
+            <!-- <img src="{{ url_for('static', filename='images/logo.png', _external=True) }}" alt="Company Logo"> -->
+            <h1>Laporan CAPA</h1>
+        </div>
+
+        <div class="section">
+            <h2>Detail Masalah (CAPA #{{ issue.capa_id }})</h2>
+            <dl>
+                <dt>ID Laporan:</dt>
+                <dd>{{ issue.capa_id }}</dd>
+                <dt>Pelanggan:</dt>
+                <dd>{{ issue.customer_name }}</dd>
+                <dt>Item Terkait:</dt>
+                <dd>{{ issue.item_involved }}</dd>
+                <dt>Nama Mesin:</dt>
+                <dd>{{ issue.machine_name or 'N/A' }}</dd>
+                <dt>Nomor Batch:</dt>
+                <dd>{{ issue.batch_number or 'N/A' }}</dd>
+                <dt>Tanggal Masalah:</dt>
+                <dd>{{ issue.issue_date.strftime('%d %B %Y') }}</dd>
+                <dt>Tanggal Pengajuan:</dt>
+                <dd>{{ issue.submission_timestamp.strftime('%d %B %Y, %H:%M') }}</dd>
+                <dt>Status:</dt>
+                <dd>{{ issue.status }}</dd>
+                <dt>Deskripsi Masalah:</dt>
+                <dd>{{ issue.issue_description | nl2br }}</dd>
+            </dl>
+            {% if issue.initial_photo_path %}
+            <h3 style="margin-top: 1.5em;">Foto Awal:</h3>
+            <img src="{{ url_for('uploaded_file', filename=issue.initial_photo_path, _external=True) }}" class="photo"
+                alt="Initial Issue Photo">
+            {% endif %}
+        </div>
+
+        {% if issue.root_cause %}
+        <div class="section">
+            <h2>Analisis Akar Masalah (5 Why)</h2>
+            {% set rca_data = issue.root_cause.ai_suggested_rc_json | fromjson %}
+            <div class="rca-item"><span class="label">Mengapa 1:</span> {{ issue.root_cause.user_adjusted_why1 or
+                rca_data.get('why1', 'N/A') }}</div>
+            <div class="rca-item"><span class="label">Mengapa 2:</span> {{ issue.root_cause.user_adjusted_why2 or
+                rca_data.get('why2', 'N/A') }}</div>
+            <div class="rca-item"><span class="label">Mengapa 3:</span> {{ issue.root_cause.user_adjusted_why3 or
+                rca_data.get('why3', 'N/A') }}</div>
+            <div class="rca-item"><span class="label">Mengapa 4:</span> {{ issue.root_cause.user_adjusted_why4 or
+                rca_data.get('why4', 'N/A') }}</div>
+            <div class="rca-item"><span class="label">Akar Masalah:</span> {{
+                issue.root_cause.user_adjusted_root_cause or rca_data.get('root_cause', 'N/A') }}</div>
+            <small>Analisis Diajukan: {{ issue.root_cause.rc_submission_timestamp.strftime('%d %B %Y, %H:%M') if
+                issue.root_cause.rc_submission_timestamp else 'N/A' }}</small>
+        </div>
         {% endif %}
-    </div>
 
-    {% if issue.root_cause %}
-    <div class="section">
-        <h2>Analisis Akar Masalah (5 Why)</h2>
-        {% set rca_data = issue.root_cause.ai_suggested_rc_json | fromjson %}
-        <div class="rca-item"><span class="label">Mengapa 1:</span> {{ issue.root_cause.user_adjusted_why1 or rca_data.get('why1', 'N/A') }}</div>
-        <div class="rca-item"><span class="label">Mengapa 2:</span> {{ issue.root_cause.user_adjusted_why2 or rca_data.get('why2', 'N/A') }}</div>
-        <div class="rca-item"><span class="label">Mengapa 3:</span> {{ issue.root_cause.user_adjusted_why3 or rca_data.get('why3', 'N/A') }}</div>
-        <div class="rca-item"><span class="label">Mengapa 4:</span> {{ issue.root_cause.user_adjusted_why4 or rca_data.get('why4', 'N/A') }}</div>
-        <div class="rca-item"><span class="label">Akar Masalah Akhir:</span> {{ issue.root_cause.user_adjusted_root_cause or rca_data.get('root_cause', 'N/A') }}</div>
-        <p><small>Analisis Diajukan: {{ issue.root_cause.rc_submission_timestamp.strftime('%Y-%m-%d %H:%M') if issue.root_cause.rc_submission_timestamp else 'N/A' }}</small></p>
-    </div>
-    {% endif %}
+        {% if issue.action_plan %}
+        <div class="section">
+            <h2>Rencana Tindakan</h2>
+            {% set adjusted_actions = issue.action_plan.user_adjusted_actions_json | fromjson if
+            issue.action_plan.user_adjusted_actions_json else None %}
 
-    {% if issue.action_plan %}
-    <div class="section">
-        <h2>Rencana Tindakan</h2>
-        {% set adjusted_actions = issue.action_plan.user_adjusted_actions_json | fromjson if issue.action_plan.user_adjusted_actions_json else None %}
-        
-        {% if adjusted_actions %}
-            <!-- Tampilan Terstruktur Menggunakan Format Baru -->
+            {% if adjusted_actions %}
+            <!-- Structured View using New Format -->
             <div class="subsection">
-                <h3>Tindakan Sementara</h3>
+                <h3>Tindakan Sementara / Korektif</h3>
+                {% if adjusted_actions.temp_actions %}
                 <table>
                     <thead>
                         <tr>
                             <th style="width: 5%;">No.</th>
-                            <th style="width: 40%;">Deskripsi Tindakan</th>
-                            <th style="width: 20%;">Indikator Keberhasilan</th>
+                            <th style="width: 50%;">Deskripsi Tindakan</th>
                             <th style="width: 15%;">PIC</th>
-                            <th style="width: 15%;">Tenggat Waktu</th>
-                            <th style="width: 5%;">Status</th>
+                            <th style="width: 20%;">Tenggat Waktu</th>
+                            <th style="width: 10%;">Status</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for action in adjusted_actions.temp_actions %}
-                            <tr>
-                                <td>{{ loop.index }}</td>
-                                <td>{{ action.action_text }}</td>
-                                <td>{{ action.indicator or '-' }}</td>
-                                <td>{{ action.pic }}</td>
-                                <td>{{ action.due_date }}</td>
-                                <td>{{ 'Selesai' if action.completed else 'Belum' }}</td>
-                            </tr>
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>{{ action.action_text }}</td>
+                            <td>{{ action.pic }}</td>
+                            <td>{{ action.due_date }}</td>
+                            <td class="{{ 'status-selesai' if action.completed else 'status-belum' }}">{{ 'Selesai' if
+                                action.completed else 'Belum' }}</td>
+                        </tr>
                         {% endfor %}
                     </tbody>
                 </table>
+                {% else %}
+                <p style="font-style: italic; text-align: center; color: #777; font-size: 9pt;">Tidak ada tindakan
+                    sementara.</p>
+                {% endif %}
             </div>
-            
+
             <div class="subsection">
                 <h3>Tindakan Pencegahan</h3>
+                {% if adjusted_actions.prev_actions %}
                 <table>
                     <thead>
                         <tr>
                             <th style="width: 5%;">No.</th>
-                            <th style="width: 40%;">Deskripsi Tindakan</th>
-                            <th style="width: 20%;">Indikator Keberhasilan</th>
+                            <th style="width: 50%;">Deskripsi Tindakan</th>
                             <th style="width: 15%;">PIC</th>
-                            <th style="width: 15%;">Tenggat Waktu</th>
-                            <th style="width: 5%;">Status</th>
+                            <th style="width: 20%;">Tenggat Waktu</th>
+                            <th style="width: 10%;">Status</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for action in adjusted_actions.prev_actions %}
-                            <tr>
-                                <td>{{ loop.index }}</td>
-                                <td>{{ action.action_text }}</td>
-                                <td>{{ action.indicator or '-' }}</td>
-                                <td>{{ action.pic }}</td>
-                                <td>{{ action.due_date }}</td>
-                                <td>{{ 'Selesai' if action.completed else 'Belum' }}</td>
-                            </tr>
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>{{ action.action_text }}</td>
+                            <td>{{ action.pic }}</td>
+                            <td>{{ action.due_date }}</td>
+                            <td class="{{ 'status-selesai' if action.completed else 'status-belum' }}">{{ 'Selesai' if
+                                action.completed else 'Belum' }}</td>
+                        </tr>
                         {% endfor %}
                     </tbody>
                 </table>
-            </div>
-        {% else %}
-            <!-- Tampilan Lama untuk Kompatibilitas -->
-            <div class="ap-item"><span class="label">Tindakan Sementara:</span> {{ issue.action_plan.user_adjusted_temp_action or 'N/A' }}</div>
-            <div class="ap-item"><span class="label">Tindakan Pencegahan:</span> {{ issue.action_plan.user_adjusted_prev_action or 'N/A' }}</div>
-            <br>
-            <div class="ap-item"><span class="label">Penanggung Jawab (PIC):</span> {{ issue.action_plan.pic_name or 'N/A' }}</div>
-            <div class="ap-item"><span class="label">Tanggal Jatuh Tempo:</span> {{ issue.action_plan.due_date.strftime('%Y-%m-%d') if issue.action_plan.due_date else 'N/A' }}</div>
-        {% endif %}
-        
-        <p><small>Rencana Tindakan Diajukan: {{ issue.action_plan.action_submission_timestamp.strftime('%Y-%m-%d %H:%M') if issue.action_plan.action_submission_timestamp else 'N/A' }}</small></p>
-    </div>
-    {% endif %}
-
-    {% if issue.evidence %}
-    <div class="section">
-        <h2>Bukti</h2>
-        {% for ev in issue.evidence %}
-            <div style="margin-bottom: 15px; page-break-inside: avoid;">
-                <img src="{{ url_for('uploaded_file', filename=ev.evidence_photo_path, _external=True) }}" class="photo" alt="Evidence Photo {{ ev.evidence_id }}">
-                {% if ev.evidence_description %}
-                    <p>{{ ev.evidence_description | nl2br }}</p>
+                {% else %}
+                <p style="font-style: italic; text-align: center; color: #777; font-size: 9pt;">Tidak ada tindakan
+                    pencegahan.</p>
                 {% endif %}
-                <p><small>Bukti Diajukan: {{ ev.evidence_submission_timestamp.strftime('%Y-%m-%d %H:%M') }}</small></p>
             </div>
-        {% endfor %}
-    </div>
-    {% endif %}
+            {% else %}
+            <!-- Legacy View for Compatibility -->
+            <div class="ap-item"><span class="label">Tindakan Sementara:</span> {{
+                issue.action_plan.user_adjusted_temp_action or 'N/A' }}</div>
+            <div class="ap-item"><span class="label">Tindakan Pencegahan:</span> {{
+                issue.action_plan.user_adjusted_prev_action or 'N/A' }}</div>
+            <br>
+            <div class="ap-item"><span class="label">Penanggung Jawab (PIC):</span> {{ issue.action_plan.pic_name or
+                'N/A' }}</div>
+            <div class="ap-item"><span class="label">Tanggal Jatuh Tempo:</span> {{
+                issue.action_plan.due_date.strftime('%d %B %Y') if issue.action_plan.due_date else 'N/A' }}</div>
+            {% endif %}
 
-    <div class="footer">
-        Dibuat pada {{ datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S') }} UTC oleh SANSICO Asisten AI CAPA
-    </div>
+            <small>Rencana Tindakan Diajukan: {{ issue.action_plan.action_submission_timestamp.strftime('%d %B %Y,
+                %H:%M') if issue.action_plan.action_submission_timestamp else 'N/A' }}</small>
+        </div>
+        {% endif %}
+
+        {% if issue.evidence %}
+        <div class="section">
+            <h2>Bukti Implementasi</h2>
+            {% for ev in issue.evidence %}
+            <div class="evidence-block">
+                <img src="{{ url_for('uploaded_file', filename=ev.evidence_photo_path, _external=True) }}" class="photo"
+                    alt="Evidence Photo {{ ev.evidence_id }}">
+
+                {# --- Logic to find and display related action text --- #}
+                {% set action_text_found = false %}
+                {% if issue.action_plan and issue.action_plan.user_adjusted_actions_json and ev.action_type and
+                ev.action_index is not none %}
+                {% set action_data = issue.action_plan.user_adjusted_actions_json | fromjson %}
+                {% if ev.action_type == 'temporary' %}
+                {% set actions_list = action_data.get('temp_actions', []) %}
+                {% set action_type_display = 'Sementara / Korektif' %}
+                {% elif ev.action_type == 'preventive' %}
+                {% set actions_list = action_data.get('prev_actions', []) %}
+                {% set action_type_display = 'Pencegahan' %}
+                {% else %}
+                {% set actions_list = [] %}
+                {% set action_type_display = ev.action_type %} {# Fallback to raw type #}
+                {% endif %}
+
+                {% if actions_list and ev.action_index >= 0 and ev.action_index < actions_list | length %} {% set
+                    related_action=actions_list[ev.action_index] %} {% if related_action %} <div
+                    class="evidence-action-link"> {# Changed from <p> to
+                    <div> for better structure #}
+                        <strong>Bukti untuk Tindakan {{ action_type_display }} #{{ ev.action_index + 1 }}:</strong><br>
+                        {{ related_action.get('action_text', 'Teks tindakan tidak ditemukan.') }}
+                    </div>
+                    {% set action_text_found = true %}
+                    {% endif %}
+                    {% endif %}
+                    {% endif %}
+                    {# --- End logic --- #}
+
+                    {% if ev.evidence_description %}
+                    <p><strong>Deskripsi Bukti:</strong> {{ ev.evidence_description | nl2br }}</p>
+                    {% endif %}
+                    <small>Bukti Diajukan: {{ ev.evidence_submission_timestamp.strftime('%d %B %Y, %H:%M') }}</small>
+            </div>
+            {% else %}
+            <p style="font-style: italic; text-align: center; color: #777; font-size: 9pt;">Tidak ada bukti implementasi
+                yang diunggah.</p>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="footer-text">
+            Laporan ini dibuat secara otomatis oleh SANSICO Asisten AI CAPA pada {{ datetime.utcnow().strftime('%d %B
+            %Y, %H:%M:%S') }} UTC
+        </div>
+
+    </div> <!-- End report-container -->
 
 </body>
+
 </html>

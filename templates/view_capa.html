@@ -370,7 +370,9 @@
       required>{{ issue.root_cause.user_adjusted_root_cause or rca_data.get('root_cause', '') }}</textarea>
   </div>
 
-  <button type="submit" class="btn btn-primary" id="submit-rca-btn">Kirim Akar Masalah yang Disesuaikan</button>
+  <button type="submit" class="btn btn-primary" id="submit-rca-btn" {% if issue.status=='Closed' %}disabled{% endif
+    %}>{% if issue.status == 'Closed' %}Akar Masalah Terkunci{% else %}Kirim Akar Masalah yang Disesuaikan{% endif
+    %}</button>
 
 </form>
 {% elif issue.status == 'RCA Pending' %}
@@ -900,8 +902,91 @@
   </div>
   {% elif issue.status == 'Closed' %}
   <div class="alert alert-success" role="alert">
-    Masalah CAPA ini telah ditutup.
+    <i class="fas fa-check-circle"></i> Masalah CAPA ini telah ditutup.
   </div>
+
+  <!-- Tampilkan bukti yang sudah diajukan dalam format grid -->
+  {% if issue.evidence %}
+  <div class="mt-4">
+    <h5>Bukti yang Telah Diajukan</h5>
+
+    <!-- Tab untuk memisahkan bukti tindakan sementara dan pencegahan -->
+    <ul class="nav nav-tabs mb-3" id="evidence-tabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="temp-evidence-tab" data-bs-toggle="tab" data-bs-target="#temp-evidence"
+          type="button" role="tab" aria-controls="temp-evidence" aria-selected="true">Tindakan Sementara</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="prev-evidence-tab" data-bs-toggle="tab" data-bs-target="#prev-evidence"
+          type="button" role="tab" aria-controls="prev-evidence" aria-selected="false">Tindakan Pencegahan</button>
+      </li>
+    </ul>
+
+    <div class="tab-content" id="evidence-tabs-content">
+      <!-- Bukti tindakan sementara -->
+      <div class="tab-pane fade show active" id="temp-evidence" role="tabpanel" aria-labelledby="temp-evidence-tab">
+        <div class="row">
+          {% set temp_evidence_exists = false %}
+          {% for ev in issue.evidence if ev.action_type == 'temporary' %}
+          {% set temp_evidence_exists = true %}
+          <div class="col-md-4 mb-3">
+            <div class="card h-100">
+              <img src="{{ url_for('uploaded_file', filename=ev.evidence_photo_path) }}"
+                class="card-img-top evidence-thumbnail" alt="Bukti Foto"
+                style="height: 200px; object-fit: cover; cursor: zoom-in;" data-bs-toggle="modal"
+                data-bs-target="#evidenceModal"
+                data-img-src="{{ url_for('uploaded_file', filename=ev.evidence_photo_path) }}"
+                data-img-desc="{{ ev.evidence_description|default('')|e }}"
+                data-img-date="{{ ev.evidence_submission_timestamp.strftime('%Y-%m-%d %H:%M') }}">
+              <div class="card-body">
+                {% if ev.evidence_description %}
+                <p class="card-text">{{ ev.evidence_description | nl2br }}</p>
+                {% endif %}
+                <p class="card-text"><small class="text-muted">Diajukan: {{
+                    ev.evidence_submission_timestamp.strftime('%Y-%m-%d %H:%M') }}</small></p>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+
+        </div>
+      </div>
+
+      <!-- Bukti tindakan pencegahan -->
+      <div class="tab-pane fade" id="prev-evidence" role="tabpanel" aria-labelledby="prev-evidence-tab">
+        <div class="row">
+          {% set prev_evidence_exists = false %}
+          {% for ev in issue.evidence if ev.action_type == 'preventive' %}
+          {% set prev_evidence_exists = true %}
+          <div class="col-md-4 mb-3">
+            <div class="card h-100">
+              <img src="{{ url_for('uploaded_file', filename=ev.evidence_photo_path) }}"
+                class="card-img-top evidence-thumbnail" alt="Bukti Foto"
+                style="height: 200px; object-fit: cover; cursor: zoom-in;" data-bs-toggle="modal"
+                data-bs-target="#evidenceModal"
+                data-img-src="{{ url_for('uploaded_file', filename=ev.evidence_photo_path) }}"
+                data-img-desc="{{ ev.evidence_description|default('')|e }}"
+                data-img-date="{{ ev.evidence_submission_timestamp.strftime('%Y-%m-%d %H:%M') }}">
+              <div class="card-body">
+                {% if ev.evidence_description %}
+                <p class="card-text">{{ ev.evidence_description | nl2br }}</p>
+                {% endif %}
+                <p class="card-text"><small class="text-muted">Diajukan: {{
+                    ev.evidence_submission_timestamp.strftime('%Y-%m-%d %H:%M') }}</small></p>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+
+        </div>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="alert alert-info mt-3">
+    <i class="fas fa-info-circle"></i> Tidak ada bukti yang diajukan untuk CAPA ini.
+  </div>
+  {% endif %}
   {% elif issue.status not in ['Open', 'RCA Pending', 'Action Pending'] %}
   {# Show message if status is unexpected but not Evidence Pending #}
   <div class="alert alert-secondary" role="alert">

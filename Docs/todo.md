@@ -16,6 +16,7 @@
 [x] Hapus column indikator keberhasilan pada hasil laporan CAPA (pdf)
 [x] Ubah databasenya ke MySQL (tanya mana lebih baik)
 [x] Bug: list tidak terhapus untuk action plan
+[ ] Bug: CAPA action plan belum ada buktinya tapi statusnya success
 
 Flow:
 masukin case (Batch, Jumlah reject) -> required untuk gemba (Foto, deskripsi real issue) -> RCA -> Action plan -> evidence
