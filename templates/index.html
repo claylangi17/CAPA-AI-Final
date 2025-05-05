@@ -88,7 +88,7 @@
               <p class="card-text">
                 <small class="text-muted">
                   <i class="fas fa-cog me-1"></i> Mesin: {{ issue.machine_name or 'Tidak Ada' }}<br>
-                  <i class="fas fa-barcode me-1"></i> Batch: {{ issue.batch_number or 'Tidak Ada' }}<br>
+                  <i class="fas fa-barcode me-1"></i> Batch number/ SPK: {{ issue.batch_number or 'Tidak Ada' }}<br>
                   <i class="far fa-calendar-alt me-1"></i> Issue Date: {{ issue.issue_date.strftime('%Y-%m-%d') }}<br>
                   <i class="far fa-clock me-1"></i> Submitted: {{ issue.submission_timestamp.strftime('%Y-%m-%d %H:%M') }}
                 </small>

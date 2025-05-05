@@ -26,7 +26,7 @@ class CapaIssue(db.Model):
 
     # Relationships
     gemba_investigation = db.relationship('GembaInvestigation', backref='capa_issue',
-                                 uselist=False, cascade="all, delete-orphan")  # One-to-one
+                                          uselist=False, cascade="all, delete-orphan")  # One-to-one
     root_cause = db.relationship('RootCause', backref='capa_issue',
                                  uselist=False, cascade="all, delete-orphan")  # One-to-one
     action_plan = db.relationship('ActionPlan', backref='capa_issue',
@@ -42,12 +42,52 @@ class RootCause(db.Model):
         'capa_issues.capa_id'), nullable=False, unique=True)
     # Store AI's 5 Why suggestion as JSON string
     ai_suggested_rc_json = db.Column(db.Text)
+    # Store user's adjusted whys as JSON string to support variable number of whys
+    user_adjusted_whys_json = db.Column(db.Text)
+    # Keep original columns for backward compatibility
     user_adjusted_why1 = db.Column(db.Text)
     user_adjusted_why2 = db.Column(db.Text)
     user_adjusted_why3 = db.Column(db.Text)
     user_adjusted_why4 = db.Column(db.Text)
     user_adjusted_root_cause = db.Column(db.Text)  # Final root cause (Why 5)
     rc_submission_timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+    @property
+    def user_adjusted_whys(self):
+        """Get the list of user adjusted whys"""
+        if self.user_adjusted_whys_json:
+            return json.loads(self.user_adjusted_whys_json)
+        # For backward compatibility, convert old format to new format
+        elif self.user_adjusted_why1:
+            whys = []
+            if self.user_adjusted_why1:
+                whys.append(self.user_adjusted_why1)
+            if self.user_adjusted_why2:
+                whys.append(self.user_adjusted_why2)
+            if self.user_adjusted_why3:
+                whys.append(self.user_adjusted_why3)
+            if self.user_adjusted_why4:
+                whys.append(self.user_adjusted_why4)
+            if self.user_adjusted_root_cause:
+                whys.append(self.user_adjusted_root_cause)
+            return whys
+        return []
+
+    @user_adjusted_whys.setter
+    def user_adjusted_whys(self, whys_list):
+        """Set the list of user adjusted whys"""
+        self.user_adjusted_whys_json = json.dumps(whys_list)
+        # Also update individual columns for backward compatibility
+        if len(whys_list) > 0:
+            self.user_adjusted_why1 = whys_list[0]
+        if len(whys_list) > 1:
+            self.user_adjusted_why2 = whys_list[1]
+        if len(whys_list) > 2:
+            self.user_adjusted_why3 = whys_list[2]
+        if len(whys_list) > 3:
+            self.user_adjusted_why4 = whys_list[3]
+        if len(whys_list) > 4:
+            self.user_adjusted_root_cause = whys_list[4]
 
 
 class ActionPlan(db.Model):
@@ -87,16 +127,18 @@ class GembaInvestigation(db.Model):
     gemba_id = db.Column(db.Integer, primary_key=True)
     capa_id = db.Column(db.Integer, db.ForeignKey(
         'capa_issues.capa_id'), nullable=False, unique=True)
-    findings = db.Column(db.Text, nullable=False)  # Text of the findings, including suspected causes and factors
+    # Text of the findings, including suspected causes and factors
+    findings = db.Column(db.Text, nullable=False)
     gemba_photos_json = db.Column(db.Text)  # Store photo paths as JSON array
-    gemba_submission_timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-    
+    gemba_submission_timestamp = db.Column(
+        db.DateTime, default=datetime.utcnow)
+
     @property
     def gemba_photos(self):
         if self.gemba_photos_json:
             return json.loads(self.gemba_photos_json)
         return []
-    
+
     @gemba_photos.setter
     def gemba_photos(self, photo_list):
         self.gemba_photos_json = json.dumps(photo_list)
@@ -105,8 +147,12 @@ class GembaInvestigation(db.Model):
 class AIKnowledgeBase(db.Model):
     __tablename__ = 'ai_knowledge_base'
     knowledge_id = db.Column(db.Integer, primary_key=True)
-    source_type = db.Column(db.String(50), nullable=False)  # e.g., 'rca_adjustment', 'action_plan_adjustment', etc.
-    source_id = db.Column(db.Integer, nullable=False)  # ID of the source record (e.g., capa_id)
-    knowledge_data = db.Column(db.Text, nullable=False)  # JSON string containing the knowledge data
+    # e.g., 'rca_adjustment', 'action_plan_adjustment', etc.
+    source_type = db.Column(db.String(50), nullable=False)
+    # ID of the source record (e.g., capa_id)
+    source_id = db.Column(db.Integer, nullable=False)
+    # JSON string containing the knowledge data
+    knowledge_data = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    is_active = db.Column(db.Boolean, default=True)  # Flag to disable/enable knowledge entries
+    # Flag to disable/enable knowledge entries
+    is_active = db.Column(db.Boolean, default=True)

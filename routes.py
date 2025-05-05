@@ -191,21 +191,54 @@ def register_routes(app):
             flash('Root Cause Analysis data not found for this issue.', 'danger')
             return redirect(url_for('view_capa', capa_id=capa_id))
 
-        # Get adjusted values from form
-        rc.user_adjusted_why1 = request.form.get('user_adjusted_why1')
-        rc.user_adjusted_why2 = request.form.get('user_adjusted_why2')
-        rc.user_adjusted_why3 = request.form.get('user_adjusted_why3')
-        rc.user_adjusted_why4 = request.form.get('user_adjusted_why4')
-        rc.user_adjusted_root_cause = request.form.get(
-            'user_adjusted_root_cause')
+        # Get all why inputs from the form
+        why_inputs = []
+        i = 1
+        while True:
+            why_key = f'why_{i}'
+            why_value = request.form.get(why_key)
+            if why_value is None or i > 100:  # Safety limit
+                break
+            if why_value.strip():  # Only add non-empty whys
+                why_inputs.append(why_value)
+            i += 1
+
+        # Make sure we have at least one why
+        if not why_inputs:
+            flash('Silakan isi minimal satu analisis why.', 'danger')
+            return redirect(url_for('view_capa', capa_id=capa_id))
+
+        # Set the whys using our new property
+        rc.user_adjusted_whys = why_inputs
         rc.rc_submission_timestamp = datetime.utcnow()  # Update timestamp
+
+        # For backward compatibility, also set the individual fields
+        # (This is redundant with our property setter, but keeping for clarity)
+        if len(why_inputs) > 0:
+            rc.user_adjusted_why1 = why_inputs[0]
+        if len(why_inputs) > 1:
+            rc.user_adjusted_why2 = why_inputs[1]
+        if len(why_inputs) > 2:
+            rc.user_adjusted_why3 = why_inputs[2]
+        if len(why_inputs) > 3:
+            rc.user_adjusted_why4 = why_inputs[3]
+        if len(why_inputs) > 4:
+            rc.user_adjusted_root_cause = why_inputs[4]
 
         # Update issue status
         issue.status = 'Action Pending'  # Move to next stage
 
+        # Reset any existing user-adjusted action plan to use the new AI suggestions
+        if issue.action_plan:
+            # Clear any user adjustments but keep the AI suggestions
+            issue.action_plan.user_adjusted_actions_json = None
+            issue.action_plan.user_adjusted_temp_action = None
+            issue.action_plan.user_adjusted_prev_action = None
+
         try:
             db.session.commit()
-            flash('Adjusted Root Cause submitted successfully! Triggering AI Action Plan recommendation...', 'success')
+            flash(
+                'Akar Masalah disesuaikan berhasil! Memicu rekomendasi Rencana Tindakan AI baru...', 'success')
 
             # Store the user's RCA adjustment for AI learning
             try:
@@ -515,7 +548,73 @@ def register_routes(app):
         else:
             flash('Gagal mengupload bukti. Format file tidak valid.', 'danger')
 
-        return redirect(url_for('view_capa', capa_id=capa_id))
+        # Redirect with fragment to keep position at Pengajuan Bukti section
+        return redirect(url_for('view_capa', capa_id=capa_id) + '#pengajuan-bukti')
+
+    @app.route('/edit_evidence/<int:capa_id>', methods=['POST'])
+    def edit_evidence(capa_id):
+        issue = CapaIssue.query.get_or_404(capa_id)
+
+        if issue.status == 'Closed':
+            flash(
+                'CAPA sudah ditutup. Tidak dapat melakukan input atau edit lagi.', 'warning')
+            return redirect(url_for('view_capa', capa_id=capa_id))
+
+        if issue.status != 'Evidence Pending':
+            flash(
+                f'Tidak dapat mengedit bukti untuk CAPA dengan status "{issue.status}".', 'warning')
+            return redirect(url_for('view_capa', capa_id=capa_id))
+
+        # Get evidence ID from form
+        evidence_id = request.form.get('evidence_id')
+        if not evidence_id or not evidence_id.isdigit():
+            flash('ID bukti tidak valid.', 'danger')
+            return redirect(url_for('view_capa', capa_id=capa_id))
+
+        # Find the evidence
+        evidence = Evidence.query.filter_by(
+            evidence_id=int(evidence_id), capa_id=capa_id).first()
+        if not evidence:
+            flash('Bukti tidak ditemukan.', 'danger')
+            return redirect(url_for('view_capa', capa_id=capa_id))
+
+        # Get form data
+        evidence_description = request.form.get('evidence_description', '')
+        evidence_photo = request.files.get('evidence_photo')
+
+        # Update description
+        evidence.evidence_description = evidence_description
+
+        # Update photo if provided
+        if evidence_photo and evidence_photo.filename:
+            if allowed_file(evidence_photo.filename):
+                # Delete old photo if exists
+                if evidence.evidence_photo_path and os.path.exists(os.path.join(UPLOAD_FOLDER, evidence.evidence_photo_path)):
+                    try:
+                        os.remove(os.path.join(UPLOAD_FOLDER,
+                                  evidence.evidence_photo_path))
+                    except Exception as e:
+                        print(f"Error deleting old photo: {str(e)}")
+
+                # Save new photo
+                filename = secure_filename(evidence_photo.filename)
+                unique_filename = f'{datetime.utcnow().strftime("%Y%m%d%H%M%S")}_{filename}'
+                evidence_photo.save(os.path.join(
+                    UPLOAD_FOLDER, unique_filename))
+                evidence.evidence_photo_path = unique_filename
+            else:
+                flash('Format file tidak valid.', 'danger')
+                return redirect(url_for('view_capa', capa_id=capa_id))
+
+        try:
+            db.session.commit()
+            flash('Bukti berhasil diperbarui.', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error saat memperbarui bukti: {str(e)}', 'danger')
+
+        # Redirect with fragment to keep position at Pengajuan Bukti section
+        return redirect(url_for('view_capa', capa_id=capa_id) + '#pengajuan-bukti')
 
     @app.route('/close_capa/<int:capa_id>', methods=['POST'])
     def close_capa(capa_id):

@@ -39,7 +39,8 @@
       </div>
     </nav>
 
-    <main class="container animate-fade-in">
+    <!-- Sticky Flash Messages Container -->
+    <div id="sticky-flash-container" class="sticky-top" style="top: 70px; z-index: 1020;">
       {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
           {% for category, message in messages %}
@@ -50,6 +51,9 @@
           {% endfor %}
         {% endif %}
       {% endwith %}
+    </div>
+
+    <main class="container animate-fade-in">
 
       {% block content %}
       <!-- Page specific content will go here -->

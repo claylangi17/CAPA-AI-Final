@@ -11,12 +11,22 @@
 [ ] Bedakan tiap pt dalam websitenya
 [x] Tambahkan informasi process (Machine/line) Routingnya done
 [x] Buat ainya bisa belajar dari history
-[ ] Upgrade uinya jadi lebih bagus dari web dan juga hasil pdfnya
+[x] Upgrade uinya jadi lebih bagus dari web dan juga hasil pdfnya
 [x] Foto evidence bisa ditambah agar bisa lebih banyak
 [x] Hapus column indikator keberhasilan pada hasil laporan CAPA (pdf)
 [x] Ubah databasenya ke MySQL (tanya mana lebih baik)
 [x] Bug: list tidak terhapus untuk action plan
-[ ] Bug: CAPA action plan belum ada buktinya tapi statusnya success
+[x] Bug: CAPA action plan belum ada buktinya tapi statusnya success
+[x] Bug: Pesan warning "Tindakan ini sudah ditandai selesai, tetapi belum ada bukti foto yang diunggah" masih muncul meskipun sudah ada foto
+[x] Ketika kirim bukti, buat jangan dia scroll ulang ke bawah lagi
+[ ] Bagian 5 why bisa di hapus jika tidak sampai 5 whynya
+[x] Di pdf pada bagian action plan, masih memakai action plan yang dari AI, bukan hasil revise 
+[x] Batch number/ SPK diganti textnya 
+[x] Ganti kata status di report pdf jadi "Closed" and "Open" 
+[x] Issue jika status masih gemba pending itu harusnya dia bisa pergi ke page untuk input gembanya terlebih dahulu 
+[x] perbaiki loading screen pada halaman action plan (ketika submit)
+[ ] Perbaiki UI loading screen
+[x] Ketika kirim bukti, jangan pergi ke page paling atas, tapi dia stay di bagian Pengajuan Bukti
 
 Flow:
 masukin case (Batch, Jumlah reject) -> required untuk gemba (Foto, deskripsi real issue) -> RCA -> Action plan -> evidence

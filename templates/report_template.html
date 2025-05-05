@@ -332,14 +332,14 @@
                 <dd>{{ issue.item_involved }}</dd>
                 <dt>Nama Mesin:</dt>
                 <dd>{{ issue.machine_name or 'N/A' }}</dd>
-                <dt>Nomor Batch:</dt>
+                <dt>Batch number/ SPK:</dt>
                 <dd>{{ issue.batch_number or 'N/A' }}</dd>
                 <dt>Tanggal Masalah:</dt>
                 <dd>{{ issue.issue_date.strftime('%d %B %Y') }}</dd>
                 <dt>Tanggal Pengajuan:</dt>
                 <dd>{{ issue.submission_timestamp.strftime('%d %B %Y, %H:%M') }}</dd>
                 <dt>Status:</dt>
-                <dd>{{ issue.status }}</dd>
+                <dd>{% if issue.status == 'Closed' %}Closed{% else %}Open{% endif %}</dd>
                 <dt>Deskripsi Masalah:</dt>
                 <dd>{{ issue.issue_description | nl2br }}</dd>
             </dl>
@@ -352,18 +352,37 @@
 
         {% if issue.root_cause %}
         <div class="section">
-            <h2>Analisis Akar Masalah (5 Why)</h2>
+            <h2>Analisis Akar Masalah (Why Analysis)</h2>
             {% set rca_data = issue.root_cause.ai_suggested_rc_json | fromjson %}
-            <div class="rca-item"><span class="label">Mengapa 1:</span> {{ issue.root_cause.user_adjusted_why1 or
-                rca_data.get('why1', 'N/A') }}</div>
-            <div class="rca-item"><span class="label">Mengapa 2:</span> {{ issue.root_cause.user_adjusted_why2 or
-                rca_data.get('why2', 'N/A') }}</div>
-            <div class="rca-item"><span class="label">Mengapa 3:</span> {{ issue.root_cause.user_adjusted_why3 or
-                rca_data.get('why3', 'N/A') }}</div>
-            <div class="rca-item"><span class="label">Mengapa 4:</span> {{ issue.root_cause.user_adjusted_why4 or
-                rca_data.get('why4', 'N/A') }}</div>
-            <div class="rca-item"><span class="label">Akar Masalah:</span> {{
-                issue.root_cause.user_adjusted_root_cause or rca_data.get('root_cause', 'N/A') }}</div>
+            
+            {% if issue.root_cause.user_adjusted_whys_json %}
+                {% set whys = issue.root_cause.user_adjusted_whys %}
+                {% for why in whys %}
+                    {% if loop.last %}
+                        <div class="rca-item"><span class="label">Akar Masalah:</span> {{ why }}</div>
+                    {% else %}
+                        <div class="rca-item"><span class="label">Mengapa {{ loop.index }}:</span> {{ why }}</div>
+                    {% endif %}
+                {% endfor %}
+            {% else %}
+                <!-- Fallback for backward compatibility -->
+                {% if issue.root_cause.user_adjusted_why1 %}
+                    <div class="rca-item"><span class="label">Mengapa 1:</span> {{ issue.root_cause.user_adjusted_why1 }}</div>
+                {% endif %}
+                {% if issue.root_cause.user_adjusted_why2 %}
+                    <div class="rca-item"><span class="label">Mengapa 2:</span> {{ issue.root_cause.user_adjusted_why2 }}</div>
+                {% endif %}
+                {% if issue.root_cause.user_adjusted_why3 %}
+                    <div class="rca-item"><span class="label">Mengapa 3:</span> {{ issue.root_cause.user_adjusted_why3 }}</div>
+                {% endif %}
+                {% if issue.root_cause.user_adjusted_why4 %}
+                    <div class="rca-item"><span class="label">Mengapa 4:</span> {{ issue.root_cause.user_adjusted_why4 }}</div>
+                {% endif %}
+                {% if issue.root_cause.user_adjusted_root_cause %}
+                    <div class="rca-item"><span class="label">Akar Masalah:</span> {{ issue.root_cause.user_adjusted_root_cause }}</div>
+                {% endif %}
+            {% endif %}
+            
             <small>Analisis Diajukan: {{ issue.root_cause.rc_submission_timestamp.strftime('%d %B %Y, %H:%M') if
                 issue.root_cause.rc_submission_timestamp else 'N/A' }}</small>
         </div>
@@ -397,8 +416,8 @@
                             <td>{{ action.action_text }}</td>
                             <td>{{ action.pic }}</td>
                             <td>{{ action.due_date }}</td>
-                            <td class="{{ 'status-selesai' if action.completed else 'status-belum' }}">{{ 'Selesai' if
-                                action.completed else 'Belum' }}</td>
+                            <td class="{{ 'status-selesai' if action.completed else 'status-belum' }}">{{ 'Closed' if
+                                action.completed else 'Open' }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -429,8 +448,8 @@
                             <td>{{ action.action_text }}</td>
                             <td>{{ action.pic }}</td>
                             <td>{{ action.due_date }}</td>
-                            <td class="{{ 'status-selesai' if action.completed else 'status-belum' }}">{{ 'Selesai' if
-                                action.completed else 'Belum' }}</td>
+                            <td class="{{ 'status-selesai' if action.completed else 'status-belum' }}">{{ 'Closed' if
+                                action.completed else 'Open' }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
