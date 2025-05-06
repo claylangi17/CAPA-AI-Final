@@ -6,7 +6,7 @@ import json
 
 from models import db, CapaIssue, RootCause, ActionPlan, Evidence, GembaInvestigation
 from ai_service import trigger_rca_analysis, trigger_action_plan_recommendation
-from ai_learning import store_rca_learning, store_action_plan_learning
+from ai_learning import store_knowledge_on_capa_close  # Updated import
 from utils import allowed_file
 from config import UPLOAD_FOLDER
 
@@ -240,18 +240,6 @@ def register_routes(app):
             flash(
                 'Akar Masalah disesuaikan berhasil! Memicu rekomendasi Rencana Tindakan AI baru...', 'success')
 
-            # Store the user's RCA adjustment for AI learning
-            try:
-                learning_success = store_rca_learning(capa_id)
-                if learning_success:
-                    print(
-                        f"Successfully stored RCA learning data from CAPA ID {capa_id}")
-                    # Don't show this message to user to keep UI clean
-            except Exception as learning_error:
-                # Log the error but don't show to user to keep UI clean
-                print(
-                    f"Error storing RCA learning data for CAPA ID {capa_id}: {learning_error}")
-
             # --- Trigger AI Action Plan Recommendation ---
             try:
                 trigger_action_plan_recommendation(capa_id)
@@ -431,18 +419,6 @@ def register_routes(app):
 
         try:
             db.session.commit()
-
-            # Store the user's action plan adjustment for AI learning
-            try:
-                learning_success = store_action_plan_learning(capa_id)
-                if learning_success:
-                    print(
-                        f"Successfully stored action plan learning data from CAPA ID {capa_id}")
-                    # Don't show this message to user to keep UI clean
-            except Exception as learning_error:
-                # Log the error but don't show to user to keep UI clean
-                print(
-                    f"Error storing action plan learning data for CAPA ID {capa_id}: {learning_error}")
 
             flash('Rencana Tindakan berhasil diajukan!', 'success')
             return redirect(url_for('view_capa', capa_id=capa_id))
@@ -638,7 +614,21 @@ def register_routes(app):
 
         # Update status CAPA
         issue.status = 'Closed'
-        db.session.commit()
+        db.session.commit()  # Commit status change first
+
+        # Store final knowledge when CAPA is closed
+        try:
+            knowledge_stored = store_knowledge_on_capa_close(capa_id)
+            if knowledge_stored:
+                print(
+                    f"Successfully stored consolidated AI knowledge for CAPA ID {capa_id} upon closure.")
+            else:
+                print(
+                    f"Failed to store or no data to store for AI knowledge for CAPA ID {capa_id} upon closure.")
+        except Exception as e:
+            print(
+                f"Error storing AI knowledge upon closing CAPA ID {capa_id}: {e}")
+            # Optionally, flash a warning to the user, but for now, just log it.
 
         flash('CAPA telah berhasil ditutup.', 'success')
         return redirect(url_for('view_capa', capa_id=capa_id))

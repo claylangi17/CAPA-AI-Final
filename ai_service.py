@@ -40,12 +40,39 @@ def trigger_rca_analysis(capa_id):
         print(
             f"Warning: No Gemba investigation found for CAPA ID {capa_id}. This is unusual.")
 
-    # Retrieve relevant knowledge from previous RCAs
+    # Increase the limit of retrieved knowledge to use more examples from the database
     relevant_knowledge = get_relevant_rca_knowledge(
         current_capa_issue_description=issue.issue_description,
         current_capa_machine_name=issue.machine_name,
-        limit=3
+        limit=10  # Meningkatkan jumlah maksimum referensi yang diambil
     )
+
+    # --- Helper function to parse action lists robustly ---
+    # NOTE: This helper is defined here but used in trigger_action_plan_recommendation
+    # It's placed here just for code organization within the file.
+    def _parse_action_list(json_str, capa_id_str, action_type_name):
+        """Helper to parse action list JSON, handling plain strings."""
+        if not json_str:
+            return []
+        try:
+            parsed_data = json.loads(json_str)
+            if isinstance(parsed_data, list):
+                # Ensure all items are strings
+                return [str(item) for item in parsed_data]
+            else:
+                print(
+                    f"Warning: Parsed {action_type_name} for CAPA ID {capa_id_str} is not a list: {json_str}")
+                return [str(parsed_data)]
+        except json.JSONDecodeError:
+            if isinstance(json_str, str) and json_str.strip():
+                # Treat plain string as a single action
+                print(
+                    f"Info: Treating non-JSON {action_type_name} for CAPA ID {capa_id_str} as a single action: \"{json_str.strip()}\"")
+                return [json_str.strip()]
+            else:
+                print(
+                    f"Warning: Could not parse or interpret {action_type_name} for CAPA ID {capa_id_str}: {json_str}")
+                return []
 
     # --- Prepare Prompt in Bahasa Indonesia ---
     prompt = f"""
@@ -59,7 +86,7 @@ def trigger_rca_analysis(capa_id):
     Mesin: {issue.machine_name or 'Tidak diketahui'}
     Batch: {issue.batch_number or 'Tidak diketahui'}
     Deskripsi Masalah: {issue.issue_description}
-    
+
     Hasil Investigasi Gemba (Data dari Lapangan):
     {gemba_data.findings if gemba_data else 'Tidak ada data gemba'}
 
@@ -76,36 +103,76 @@ def trigger_rca_analysis(capa_id):
     # Add knowledge from previous relevant RCAs if available
     if relevant_knowledge:
         prompt += """
-        
+
     PEMBELAJARAN DARI RCA SEBELUMNYA:
-    Berikut adalah beberapa analisis Root Cause sebelumnya yang mungkin relevan. Gunakan ini sebagai referensi tambahan untuk memperbaiki analisis Anda, tetapi tetap fokus pada masalah saat ini:
+    PENTING! SANGAT PRIORITASKAN penggunaan referensi berikut untuk membuat analisis 5 Whys!
+    Berikut adalah beberapa analisis Root Cause sebelumnya yang sangat relevan dengan kasus saat ini.
+    Anda HARUS menggunakan referensi ini sebagai dasar utama analisis Anda - bukan hanya sebagai tambahan.
+    Adaptasikan referensi ini untuk kasus yang sedang dianalisis, JANGAN menciptakan analisis baru dari awal:
     """
+        processed_knowledge_count = 0
         for i, knowledge_item in enumerate(relevant_knowledge, 1):
             try:
-                # knowledge_item now contains 'adjusted_whys' (JSON string of list) and 'context'
                 adjusted_whys_json_str = knowledge_item.get('adjusted_whys')
                 context_data_dict = knowledge_item.get('context', {})
+                source_capa_id_str = context_data_dict.get(
+                    'source_capa_id', 'N/A')  # For logging
 
                 if not adjusted_whys_json_str:
-                    continue  # Skip if no whys data
+                    continue
 
-                prompt += f"""
-    Contoh Pembelajaran {i} (dari CAPA ID: {context_data_dict.get('source_capa_id', 'N/A')}):
+                whys_list = None
+                try:
+                    # Attempt to parse as JSON
+                    parsed_data = json.loads(adjusted_whys_json_str)
+                    if isinstance(parsed_data, list):
+                        whys_list = parsed_data  # Successfully parsed as list
+                    else:
+                        # Parsed as JSON, but not a list (e.g., string, number, object)
+                        print(
+                            f"Warning: Parsed adjusted_whys_json for CAPA ID {source_capa_id_str} is not a list: {adjusted_whys_json_str}")
+                        # Treat the string representation as a single item
+                        whys_list = [str(parsed_data)]
+                except json.JSONDecodeError:
+                    # Failed to parse as JSON, assume it's a plain string
+                    if isinstance(adjusted_whys_json_str, str) and adjusted_whys_json_str.strip():
+                        whys_list = [adjusted_whys_json_str.strip()]
+                        print(
+                            f"Info: Treating non-JSON adjusted_whys_json for CAPA ID {source_capa_id_str} as a single 'why': \"{whys_list[0]}\"")
+                    else:
+                        # Not a non-empty string, cannot interpret
+                        print(
+                            f"Warning: Could not parse or interpret adjusted_whys_json for CAPA ID {source_capa_id_str}: {adjusted_whys_json_str}")
+                        continue  # Skip this knowledge item
+
+                # Now format the whys_list (if valid) into the prompt
+                if whys_list:  # Ensure we have a list (even if single item)
+                    prompt += f"""
+    Contoh Pembelajaran {i} (dari CAPA ID: {source_capa_id_str}):
     Konteks Masalah Sebelumnya:
       Deskripsi: {context_data_dict.get('issue_description', 'Tidak tersedia')}
       Mesin: {context_data_dict.get('machine_name', 'Tidak tersedia')}
     Pembelajaran RCA (5 Whys yang disesuaikan pengguna):
     """
-                # Parse the JSON string list of whys
-                whys_list = json.loads(adjusted_whys_json_str)
-                if isinstance(whys_list, list) and whys_list:
                     for idx, why_text in enumerate(whys_list):
                         prompt += f"      Why {idx + 1}: {why_text}\n"
+                    prompt += "\n"
+                    processed_knowledge_count += 1  # Count successfully processed items
                 else:
-                    prompt += "      (Tidak ada detail 'why' yang tersimpan)\n"
-                prompt += "\n"
-            except Exception as e:
-                print(f"Error processing RCA knowledge item for prompt: {e}")
+                    # This case should ideally not be reached if logic above is correct, but as fallback:
+                    prompt += f"""
+    Contoh Pembelajaran {i} (dari CAPA ID: {source_capa_id_str}):
+    Konteks Masalah Sebelumnya:
+      Deskripsi: {context_data_dict.get('issue_description', 'Tidak tersedia')}
+      Mesin: {context_data_dict.get('machine_name', 'Tidak tersedia')}
+    Pembelajaran RCA (5 Whys yang disesuaikan pengguna):
+          (Data 'why' tidak dapat diproses)\n
+    """
+                    prompt += "\n"
+
+            except Exception as e:  # Catch any other unexpected errors during processing
+                print(
+                    f"Unexpected error processing RCA knowledge item {i} for prompt: {e}")
                 continue
 
     prompt += """
@@ -116,12 +183,17 @@ def trigger_rca_analysis(capa_id):
     Berikan semua hasil dalam Bahasa Indonesia.
     """
 
-    # Log the knowledge enhancement
-    if relevant_knowledge:
+    # Log the knowledge enhancement using the count of successfully processed items
+    if processed_knowledge_count > 0:
         print(
-            f"Enhanced RCA prompt with {len(relevant_knowledge)} relevant knowledge entries.")
+            f"Enhanced RCA prompt with {processed_knowledge_count} relevant knowledge entries.")
     else:
-        print("No relevant prior knowledge found for enhancing RCA.")
+        # Check if relevant_knowledge was initially found but none could be processed
+        if relevant_knowledge:
+            print(
+                "Relevant prior knowledge was found, but none could be successfully processed for the prompt.")
+        else:
+            print("No relevant prior knowledge found for enhancing RCA.")
 
     try:
         print(f"Sending prompt to Gemini for CAPA ID {capa_id}...")
@@ -175,7 +247,7 @@ def trigger_rca_analysis(capa_id):
 
 
 def trigger_action_plan_recommendation(capa_id):
-    """Fetches issue and final RCA, calls Gemini for action plan, stores result."""
+    """Fetches issue and RCA with all WHYs, calls Gemini for action plan, stores result."""
     from models import CapaIssue  # Import here to avoid circular imports
 
     if not GOOGLE_API_KEY:
@@ -195,24 +267,87 @@ def trigger_action_plan_recommendation(capa_id):
     # This is the JSON string of all whys
     user_adjusted_whys_json_for_current_capa = issue.root_cause.user_adjusted_whys_json
 
+    # Parse all WHYs from JSON to incorporate in prompt
+    all_whys = []
+    try:
+        all_whys_data = json.loads(user_adjusted_whys_json_for_current_capa)
+
+        # Handle different expected formats of the WHYs data
+        if isinstance(all_whys_data, list):
+            # Format expected: List of dictionaries with why_question and why_answer
+            for i, why_item in enumerate(all_whys_data, 1):
+                if isinstance(why_item, dict):
+                    why_question = why_item.get('why_question', f'Why {i}?')
+                    why_answer = why_item.get('why_answer', 'Tidak tersedia')
+                    all_whys.append({
+                        'why_number': i,
+                        'question': why_question,
+                        'answer': why_answer
+                    })
+                else:
+                    print(
+                        f"Warning: WHY item {i} is not a dictionary, skipping")
+        elif isinstance(all_whys_data, dict):
+            # Alternative format: Dictionary with keys like why1, why2, etc.
+            # Map old format to new format
+            whys_mapping = {
+                'why1': 1,
+                'why2': 2,
+                'why3': 3,
+                'why4': 4,
+                'root_cause': 5  # Assuming root_cause is the 5th why
+            }
+
+            for key, i in whys_mapping.items():
+                if key in all_whys_data:
+                    all_whys.append({
+                        'why_number': i,
+                        'question': f'Why {i}?',
+                        'answer': all_whys_data[key]
+                    })
+        else:
+            print(
+                f"Warning: Unexpected WHYs data format for CAPA ID {capa_id}")
+
+    except (json.JSONDecodeError, TypeError, ValueError) as e:
+        print(
+            f"Warning: Could not parse all WHYs JSON for CAPA ID {capa_id}: {e}")
+        # Continue with empty list if parsing fails
+
     # Retrieve relevant knowledge from previous RCAs that match machine, issue desc, and 5 whys
     relevant_knowledge = get_relevant_action_plan_knowledge(
         current_capa_issue_description=issue.issue_description,
         current_capa_machine_name=issue.machine_name,
         current_capa_user_adjusted_whys_json=user_adjusted_whys_json_for_current_capa,
-        limit=3
+        limit=10  # Meningkatkan jumlah maksimum referensi yang diambil
     )
 
     # --- Prepare Prompt in Bahasa Indonesia ---
     prompt = f"""
-    Berdasarkan masalah pengemasan manufaktur yang dijelaskan di bawah ini dan akar masalah yang telah ditentukan, rekomendasikan Tindakan Sementara (temporary) dan Tindakan Pencegahan (preventive) yang spesifik dan terukur.
-    
+    Berdasarkan masalah pengemasan manufaktur yang dijelaskan di bawah ini, analisis 5 Why, dan akar masalah yang telah ditentukan, rekomendasikan Tindakan Sementara (temporary) dan Tindakan Pencegahan (preventive) yang spesifik dan terukur.
+
     PENTING: Berikan SEMUA TANGGAPAN dalam BAHASA INDONESIA.
 
     Detail Masalah:
     Pelanggan: {issue.customer_name}
     Item yang Terlibat: {issue.item_involved}
     Deskripsi Masalah: {issue.issue_description}
+    
+    Analisis 5 Why Lengkap:"""
+
+    # Add all WHYs to the prompt if available
+    if all_whys:
+        for why in all_whys:
+            prompt += f"""
+    Why {why['why_number']}: {why['question']}   
+    Jawaban: {why['answer']}"""
+    else:
+        prompt += f"""
+    (Analisis 5 Why tidak tersedia secara lengkap)
+    Akar Masalah Akhir: {final_rc}"""
+
+    prompt += f"""
+
     Akar Masalah Akhir: {final_rc}
 
     Berikan output dalam format JSON berikut (tanpa nested JSON yang kompleks):
@@ -237,15 +372,21 @@ def trigger_action_plan_recommendation(capa_id):
     """
 
     # Add knowledge from previous relevant action plans if available
+    # Initialize counter *before* checking relevant_knowledge
+    processed_ap_knowledge_count = 0
     if relevant_knowledge:
         prompt += """
-        
+
     PEMBELAJARAN DARI RENCANA TINDAKAN SEBELUMNYA YANG SERUPA:
-    Berikut adalah beberapa Rencana Tindakan dari kasus sebelumnya yang serupa (berdasarkan kecocokan mesin, deskripsi masalah, dan 5 Why). 
-    Gunakan ini sebagai referensi untuk membantu Anda merumuskan Rencana Tindakan yang lebih baik untuk masalah saat ini.
+    PERHATIAN! SANGAT PRIORITASKAN dan GUNAKAN referensi berikut sebagai solusi utama!
+    Berikut adalah beberapa Rencana Tindakan dari kasus sebelumnya yang sangat serupa dengan kasus ini.
+    Anda HARUS menggunakan referensi ini sebagai sumber utama rekomendasi Anda.
+    JANGAN menciptakan rekomendasi baru dari awal. Cukup adaptasikan solusi yang sudah terbukti ini:
     """
         # relevant_knowledge now contains past Action Plan adjustments
         for i, knowledge_item in enumerate(relevant_knowledge, 1):
+            temp_actions_list = []  # Initialize lists for this item
+            prev_actions_list = []
             try:
                 # knowledge_item contains 'adjusted_temporary_actions', 'adjusted_preventive_actions' (JSON strings of lists), and 'context'
                 temp_actions_json_str = knowledge_item.get(
@@ -253,57 +394,75 @@ def trigger_action_plan_recommendation(capa_id):
                 prev_actions_json_str = knowledge_item.get(
                     'adjusted_preventive_actions')
                 context_data_dict = knowledge_item.get('context', {})
+                source_capa_id_str = context_data_dict.get(
+                    'source_capa_id', 'N/A')  # Get source ID for logging
 
-                prompt += f"""
-    Contoh Pembelajaran Rencana Tindakan {i} (dari CAPA ID: {context_data_dict.get('source_capa_id', 'N/A')}):
+                # Use the helper function (defined in trigger_rca_analysis) for robust parsing
+                temp_actions_list = _parse_action_list(
+                    temp_actions_json_str, source_capa_id_str, "temporary actions")
+                prev_actions_list = _parse_action_list(
+                    prev_actions_json_str, source_capa_id_str, "preventive actions")
+
+                # Only add to prompt if we successfully parsed something
+                if temp_actions_list or prev_actions_list:
+                    prompt += f"""
+    Contoh Pembelajaran Rencana Tindakan {i} (dari CAPA ID: {source_capa_id_str}):
     Konteks Masalah Sebelumnya:
       Deskripsi: {context_data_dict.get('issue_description', 'Tidak tersedia')}
       Mesin: {context_data_dict.get('machine_name', 'Tidak tersedia')}
-      
+
     Tindakan Sementara yang telah disesuaikan pengguna sebelumnya:
     """
-                temp_actions_list = json.loads(
-                    temp_actions_json_str) if temp_actions_json_str else []
-                if isinstance(temp_actions_list, list) and temp_actions_list:
-                    for j, action_text in enumerate(temp_actions_list, 1):
-                        prompt += f"      {j}. {action_text}\n"
-                else:
-                    prompt += "      (Tidak ada tindakan sementara yang tersimpan)\n"
+                    if temp_actions_list:
+                        for j, action_text in enumerate(temp_actions_list, 1):
+                            prompt += f"      {j}. {action_text}\n"
+                    else:
+                        prompt += "      (Tidak ada tindakan sementara yang tersimpan)\n"
 
-                prompt += f"""
+                    prompt += f"""
     Tindakan Pencegahan yang telah disesuaikan pengguna sebelumnya:
     """
-                prev_actions_list = json.loads(
-                    prev_actions_json_str) if prev_actions_json_str else []
-                if isinstance(prev_actions_list, list) and prev_actions_list:
-                    for j, action_text in enumerate(prev_actions_list, 1):
-                        prompt += f"      {j}. {action_text}\n"
+                    if prev_actions_list:
+                        for j, action_text in enumerate(prev_actions_list, 1):
+                            prompt += f"      {j}. {action_text}\n"
+                    else:
+                        # Corrected placeholder
+                        prompt += "      (Tidak ada tindakan pencegahan yang tersimpan)\n"
+                    prompt += "\n"
+                    processed_ap_knowledge_count += 1  # Increment count here
                 else:
-                    prompt += "      (Tidak ada detail 'why' yang tersimpan untuk RCA ini)\n"
-                prompt += "\n"
-            except Exception as e:
+                    # Optional: Log if an item was retrieved but parsing resulted in empty lists for both
+                    print(
+                        f"Info: Skipping knowledge item {i} for Action Plan prompt as parsing yielded no actions.")
+
+            except Exception as e:  # This except catches errors for the whole item processing
                 print(
-                    f"Error processing similar RCA knowledge item for Action Plan prompt: {e}")
-                continue
+                    f"Error processing Action Plan knowledge item {i} for prompt: {e}")
+                continue  # Continue to next knowledge_item
+    # This else corresponds to 'if relevant_knowledge:'
     else:
         prompt += """
-    (Tidak ada pembelajaran dari RCA sebelumnya yang cocok ditemukan untuk kasus ini.)
+    (Tidak ada pembelajaran dari Rencana Tindakan sebelumnya yang cocok ditemukan untuk kasus ini.)
     """
     prompt += """
-    
+
     Perhatikan! Berikan HANYA langkah tindakan untuk setiap item, tanpa indikator keberhasilan, penanggung jawab, atau deadline - itu akan ditambahkan oleh pengguna aplikasi.
-    
+
     OUTPUT harus merupakan JSON yang valid dan sederhana. Hanya berisi array langkah-langkah tindakan yang perlu dilakukan.
     Buat 3-4 langkah tindakan sementara dan 2-3 langkah tindakan pencegahan yang spesifik dan relevan dengan masalah tersebut.
     Pastikan semuanya dalam Bahasa Indonesia.
     """
 
-    # Log the knowledge enhancement
-    if relevant_knowledge:
+    # Log the knowledge enhancement using the count of successfully processed items
+    if processed_ap_knowledge_count > 0:
         print(
-            f"Enhanced Action Plan prompt with {len(relevant_knowledge)} relevant knowledge entries.")
+            f"Enhanced Action Plan prompt with {processed_ap_knowledge_count} relevant knowledge entries.")
     else:
-        print("No relevant prior knowledge found for enhancing Action Plan.")
+        # Check if relevant_knowledge was initially found but none could be processed
+        if relevant_knowledge:
+            print("Relevant prior Action Plan knowledge was found, but none could be successfully processed for the prompt.")
+        else:
+            print("No relevant prior knowledge found for enhancing Action Plan.")
 
     try:
         print(f"Sending Action Plan prompt to Gemini for CAPA ID {capa_id}...")

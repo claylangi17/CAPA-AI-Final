@@ -149,8 +149,6 @@ class AIKnowledgeBase(db.Model):
     knowledge_id = db.Column(db.Integer, primary_key=True)
     capa_id = db.Column(db.Integer, db.ForeignKey(
         'capa_issues.capa_id'), nullable=False)
-    # e.g., 'rca_adjustment', 'action_plan_adjustment'
-    source_type = db.Column(db.String(50), nullable=False)
 
     # Contextual information duplicated for easier querying and filtering
     machine_name = db.Column(db.String(200), nullable=True)

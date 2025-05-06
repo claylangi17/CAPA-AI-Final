@@ -1,31 +1,47 @@
-from app import app, db
-import sqlite3
+import pymysql
+import re
+from config import SQLALCHEMY_DATABASE_URI
 
-# Path ke file database SQLite
-db_path = 'instance/capa_db.sqlite3'  # File database yang aktif digunakan
-
-# Jalankan dalam konteks aplikasi
-with app.app_context():
+def add_column_to_root_cause():
+    """Add the user_adjusted_whys_json column to the root_causes table"""
+    
+    # Parse MySQL connection details from SQLAlchemy URI
+    # Format: mysql+pymysql://username:password@host/dbname
+    match = re.match(r'mysql\+pymysql://([^:]+):([^@]*)@([^/]+)/(.+)', SQLALCHEMY_DATABASE_URI)
+    
+    if not match:
+        print(f"Invalid MySQL URI format: {SQLALCHEMY_DATABASE_URI}")
+        return False
+    
+    username, password, host, dbname = match.groups()
+    
     try:
-        # Buat koneksi langsung ke SQLite untuk mengubah struktur tabel
-        conn = sqlite3.connect(db_path)
+        # Connect to the MySQL database
+        conn = pymysql.connect(
+            host=host,
+            user=username,
+            password=password,
+            database=dbname
+        )
         cursor = conn.cursor()
         
-        # Periksa apakah kolom sudah ada (untuk menghindari error jika kolom sudah ada)
-        cursor.execute("PRAGMA table_info(action_plans)")
-        columns = [column[1] for column in cursor.fetchall()]
+        # Check if column exists
+        cursor.execute("SHOW COLUMNS FROM root_causes LIKE 'user_adjusted_whys_json'")
+        column_exists = cursor.fetchone() is not None
         
-        if 'user_adjusted_actions_json' not in columns:
-            # Tambahkan kolom baru ke tabel yang sudah ada
-            cursor.execute("ALTER TABLE action_plans ADD COLUMN user_adjusted_actions_json TEXT")
-            print("Kolom user_adjusted_actions_json berhasil ditambahkan ke tabel action_plans")
+        if not column_exists:
+            print("Adding user_adjusted_whys_json column to root_causes table...")
+            cursor.execute('ALTER TABLE root_causes ADD COLUMN user_adjusted_whys_json TEXT')
+            conn.commit()
+            print("Column added successfully!")
         else:
-            print("Kolom user_adjusted_actions_json sudah ada di tabel action_plans")
+            print("Column user_adjusted_whys_json already exists in root_causes table.")
         
-        conn.commit()
         conn.close()
-        
-        print("Migrasi database selesai dengan sukses")
-        
+        return True
     except Exception as e:
-        print(f"Error saat melakukan migrasi database: {str(e)}")
+        print(f"Error updating database schema: {e}")
+        return False
+
+if __name__ == '__main__':
+    add_column_to_root_cause()
