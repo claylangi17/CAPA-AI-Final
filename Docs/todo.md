@@ -1,10 +1,10 @@
-[ ] Inject knowledge ke ainya
+[x] Inject knowledge ke ainya
 [x] Flow process harus jelas dulu, biar toolsnya gk disalahkan gunakan (gemba dulu -> Baru pakai ke website ->)
 [x] AInya bisa baca history dan ada pilihan root cause dulu.
 [ ] konek ke data baan untuk nyari lotnya/ batch mana yang harusnya di tarik (karna harus lapor ke danon, wajib tau batch) tracebility
 [ ] Simulasi biaya ainya per satu bulan kira kira bisa berapa
 [x] Table beda untuk dibaca ai agar future usenya
-[ ] Revise table ai knowledgenya
+[x] Revise table ai knowledgenya
 [x] Masukan batch 
 [x] Revise Status
 [x] Kecilkan photo hasil buktinya 
@@ -19,7 +19,7 @@
 [x] Bug: CAPA action plan belum ada buktinya tapi statusnya success
 [x] Bug: Pesan warning "Tindakan ini sudah ditandai selesai, tetapi belum ada bukti foto yang diunggah" masih muncul meskipun sudah ada foto
 [x] Ketika kirim bukti, buat jangan dia scroll ulang ke bawah lagi
-[ ] Bagian 5 why bisa di hapus jika tidak sampai 5 whynya
+[x] Bagian 5 why bisa di hapus jika tidak sampai 5 whynya
 [x] Di pdf pada bagian action plan, masih memakai action plan yang dari AI, bukan hasil revise 
 [x] Batch number/ SPK diganti textnya 
 [x] Ganti kata status di report pdf jadi "Closed" and "Open" 
