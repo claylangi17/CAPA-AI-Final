@@ -27,7 +27,8 @@ def trigger_rca_analysis(capa_id):
         return  # Don't proceed if API key is missing
 
     # Get issue with gemba investigation data
-    issue = CapaIssue.query.options(db.joinedload(CapaIssue.gemba_investigation)).get(capa_id)
+    issue = CapaIssue.query.options(db.joinedload(
+        CapaIssue.gemba_investigation)).get(capa_id)
     if not issue:
         print(
             f"Error: Could not find CAPA Issue with ID {capa_id} for AI analysis.")
@@ -36,13 +37,14 @@ def trigger_rca_analysis(capa_id):
     # Check if Gemba investigation exists
     gemba_data = issue.gemba_investigation
     if not gemba_data:
-        print(f"Warning: No Gemba investigation found for CAPA ID {capa_id}. This is unusual.")
-        
+        print(
+            f"Warning: No Gemba investigation found for CAPA ID {capa_id}. This is unusual.")
+
     # Retrieve relevant knowledge from previous RCAs
     relevant_knowledge = get_relevant_rca_knowledge(
-        issue_description=issue.issue_description,
-        gemba_findings=gemba_data.findings if gemba_data else None,
-        limit=3  # Get top 3 most relevant previous RCAs
+        current_capa_issue_description=issue.issue_description,
+        current_capa_machine_name=issue.machine_name,
+        limit=3
     )
 
     # --- Prepare Prompt in Bahasa Indonesia ---
@@ -70,7 +72,7 @@ def trigger_rca_analysis(capa_id):
       "root_cause": "Akar masalah yang mendasar"
     }}
     """
-    
+
     # Add knowledge from previous relevant RCAs if available
     if relevant_knowledge:
         prompt += """
@@ -78,26 +80,34 @@ def trigger_rca_analysis(capa_id):
     PEMBELAJARAN DARI RCA SEBELUMNYA:
     Berikut adalah beberapa analisis Root Cause sebelumnya yang mungkin relevan. Gunakan ini sebagai referensi tambahan untuk memperbaiki analisis Anda, tetapi tetap fokus pada masalah saat ini:
     """
-        
-        for i, knowledge in enumerate(relevant_knowledge, 1):
+        for i, knowledge_item in enumerate(relevant_knowledge, 1):
             try:
-                issue_context = knowledge.get('issue_context', {})
-                user_adjustment = knowledge.get('user_adjustment', {})
-                
-                # Add formatted knowledge from previous RCAs
+                # knowledge_item now contains 'adjusted_whys' (JSON string of list) and 'context'
+                adjusted_whys_json_str = knowledge_item.get('adjusted_whys')
+                context_data_dict = knowledge_item.get('context', {})
+
+                if not adjusted_whys_json_str:
+                    continue  # Skip if no whys data
+
                 prompt += f"""
-    Contoh {i}:
-    Deskripsi masalah sebelumnya: {issue_context.get('issue_description', 'Tidak tersedia')}
-    Why 1: {user_adjustment.get('why1', 'Tidak tersedia')}
-    Why 2: {user_adjustment.get('why2', 'Tidak tersedia')}
-    Why 3: {user_adjustment.get('why3', 'Tidak tersedia')}
-    Why 4: {user_adjustment.get('why4', 'Tidak tersedia')}
-    Akar masalah: {user_adjustment.get('root_cause', 'Tidak tersedia')}
-                """
-            except:
-                # Skip if there's an issue with this knowledge entry
+    Contoh Pembelajaran {i} (dari CAPA ID: {context_data_dict.get('source_capa_id', 'N/A')}):
+    Konteks Masalah Sebelumnya:
+      Deskripsi: {context_data_dict.get('issue_description', 'Tidak tersedia')}
+      Mesin: {context_data_dict.get('machine_name', 'Tidak tersedia')}
+    Pembelajaran RCA (5 Whys yang disesuaikan pengguna):
+    """
+                # Parse the JSON string list of whys
+                whys_list = json.loads(adjusted_whys_json_str)
+                if isinstance(whys_list, list) and whys_list:
+                    for idx, why_text in enumerate(whys_list):
+                        prompt += f"      Why {idx + 1}: {why_text}\n"
+                else:
+                    prompt += "      (Tidak ada detail 'why' yang tersimpan)\n"
+                prompt += "\n"
+            except Exception as e:
+                print(f"Error processing RCA knowledge item for prompt: {e}")
                 continue
-    
+
     prompt += """
 
     Lakukan analisis 5 Why berdasarkan Detail Masalah yang diberikan DAN hasil investigasi Gemba dari lapangan.
@@ -105,10 +115,11 @@ def trigger_rca_analysis(capa_id):
     tapi pastikan bahwa Anda melakukan analisis 5 Why yang logis dan mendalam.
     Berikan semua hasil dalam Bahasa Indonesia.
     """
-    
+
     # Log the knowledge enhancement
     if relevant_knowledge:
-        print(f"Enhanced RCA prompt with {len(relevant_knowledge)} relevant knowledge entries.")
+        print(
+            f"Enhanced RCA prompt with {len(relevant_knowledge)} relevant knowledge entries.")
     else:
         print("No relevant prior knowledge found for enhancing RCA.")
 
@@ -179,13 +190,17 @@ def trigger_action_plan_recommendation(capa_id):
             f"Error: Cannot trigger Action Plan AI for CAPA ID {capa_id}. Missing issue or final root cause.")
         return
 
+    # This is the final "why" string
     final_rc = issue.root_cause.user_adjusted_root_cause
-    
-    # Retrieve relevant knowledge from previous action plans
+    # This is the JSON string of all whys
+    user_adjusted_whys_json_for_current_capa = issue.root_cause.user_adjusted_whys_json
+
+    # Retrieve relevant knowledge from previous RCAs that match machine, issue desc, and 5 whys
     relevant_knowledge = get_relevant_action_plan_knowledge(
-        issue_description=issue.issue_description,
-        root_cause=final_rc,
-        limit=3  # Get top 3 most relevant previous action plans
+        current_capa_issue_description=issue.issue_description,
+        current_capa_machine_name=issue.machine_name,
+        current_capa_user_adjusted_whys_json=user_adjusted_whys_json_for_current_capa,
+        limit=3
     )
 
     # --- Prepare Prompt in Bahasa Indonesia ---
@@ -220,51 +235,60 @@ def trigger_action_plan_recommendation(capa_id):
       ]
     }}
     """
-    
+
     # Add knowledge from previous relevant action plans if available
     if relevant_knowledge:
         prompt += """
         
-    PEMBELAJARAN DARI RENCANA TINDAKAN SEBELUMNYA:
-    Berikut adalah beberapa rencana tindakan sebelumnya yang mungkin relevan. Gunakan ini sebagai referensi tambahan untuk memperbaiki rekomendasi Anda, tetapi tetap fokus pada masalah saat ini:
+    PEMBELAJARAN DARI RENCANA TINDAKAN SEBELUMNYA YANG SERUPA:
+    Berikut adalah beberapa Rencana Tindakan dari kasus sebelumnya yang serupa (berdasarkan kecocokan mesin, deskripsi masalah, dan 5 Why). 
+    Gunakan ini sebagai referensi untuk membantu Anda merumuskan Rencana Tindakan yang lebih baik untuk masalah saat ini.
     """
-        
-        for i, knowledge in enumerate(relevant_knowledge, 1):
+        # relevant_knowledge now contains past Action Plan adjustments
+        for i, knowledge_item in enumerate(relevant_knowledge, 1):
             try:
-                issue_context = knowledge.get('issue_context', {})
-                user_adjustment = knowledge.get('user_adjustment', {})
-                
-                # Add example temporary actions
+                # knowledge_item contains 'adjusted_temporary_actions', 'adjusted_preventive_actions' (JSON strings of lists), and 'context'
+                temp_actions_json_str = knowledge_item.get(
+                    'adjusted_temporary_actions')
+                prev_actions_json_str = knowledge_item.get(
+                    'adjusted_preventive_actions')
+                context_data_dict = knowledge_item.get('context', {})
+
                 prompt += f"""
-    Contoh {i} untuk masalah: {issue_context.get('issue_description', 'Tidak tersedia')}
-    Akar masalah: {issue_context.get('root_cause', 'Tidak tersedia')}
-    
-    Tindakan Sementara yang telah disesuaikan oleh pengguna:
+    Contoh Pembelajaran Rencana Tindakan {i} (dari CAPA ID: {context_data_dict.get('source_capa_id', 'N/A')}):
+    Konteks Masalah Sebelumnya:
+      Deskripsi: {context_data_dict.get('issue_description', 'Tidak tersedia')}
+      Mesin: {context_data_dict.get('machine_name', 'Tidak tersedia')}
+      
+    Tindakan Sementara yang telah disesuaikan pengguna sebelumnya:
     """
-                
-                # Add temporary actions
-                temp_actions = user_adjustment.get('temporary_actions', [])
-                for j, action in enumerate(temp_actions, 1):
-                    if isinstance(action, dict) and 'action_text' in action:
-                        prompt += f"\n    {j}. {action['action_text']}"
-                
-                # Add example preventive actions
+                temp_actions_list = json.loads(
+                    temp_actions_json_str) if temp_actions_json_str else []
+                if isinstance(temp_actions_list, list) and temp_actions_list:
+                    for j, action_text in enumerate(temp_actions_list, 1):
+                        prompt += f"      {j}. {action_text}\n"
+                else:
+                    prompt += "      (Tidak ada tindakan sementara yang tersimpan)\n"
+
                 prompt += f"""
-    
-    Tindakan Pencegahan yang telah disesuaikan oleh pengguna:
+    Tindakan Pencegahan yang telah disesuaikan pengguna sebelumnya:
     """
-                
-                # Add preventive actions
-                prev_actions = user_adjustment.get('preventive_actions', [])
-                for j, action in enumerate(prev_actions, 1):
-                    if isinstance(action, dict) and 'action_text' in action:
-                        prompt += f"\n    {j}. {action['action_text']}"
-                        
+                prev_actions_list = json.loads(
+                    prev_actions_json_str) if prev_actions_json_str else []
+                if isinstance(prev_actions_list, list) and prev_actions_list:
+                    for j, action_text in enumerate(prev_actions_list, 1):
+                        prompt += f"      {j}. {action_text}\n"
+                else:
+                    prompt += "      (Tidak ada detail 'why' yang tersimpan untuk RCA ini)\n"
                 prompt += "\n"
-            except:
-                # Skip if there's an issue with this knowledge entry
+            except Exception as e:
+                print(
+                    f"Error processing similar RCA knowledge item for Action Plan prompt: {e}")
                 continue
-    
+    else:
+        prompt += """
+    (Tidak ada pembelajaran dari RCA sebelumnya yang cocok ditemukan untuk kasus ini.)
+    """
     prompt += """
     
     Perhatikan! Berikan HANYA langkah tindakan untuk setiap item, tanpa indikator keberhasilan, penanggung jawab, atau deadline - itu akan ditambahkan oleh pengguna aplikasi.
@@ -273,10 +297,11 @@ def trigger_action_plan_recommendation(capa_id):
     Buat 3-4 langkah tindakan sementara dan 2-3 langkah tindakan pencegahan yang spesifik dan relevan dengan masalah tersebut.
     Pastikan semuanya dalam Bahasa Indonesia.
     """
-    
+
     # Log the knowledge enhancement
     if relevant_knowledge:
-        print(f"Enhanced Action Plan prompt with {len(relevant_knowledge)} relevant knowledge entries.")
+        print(
+            f"Enhanced Action Plan prompt with {len(relevant_knowledge)} relevant knowledge entries.")
     else:
         print("No relevant prior knowledge found for enhancing Action Plan.")
 

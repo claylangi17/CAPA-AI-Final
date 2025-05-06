@@ -32,37 +32,30 @@ def store_rca_learning(capa_id):
         # Parse AI suggestion
         ai_suggestion = json.loads(rc.ai_suggested_rc_json)
 
-        # Prepare knowledge entry
-        knowledge_entry = {
-            "issue_context": {
-                "customer_name": issue.customer_name,
-                "item_involved": issue.item_involved,
-                "issue_description": issue.issue_description,
-                "gemba_findings": issue.gemba_investigation.findings if issue.gemba_investigation else None
-            },
-            "ai_suggestion": {
-                "why1": ai_suggestion.get("why1", ""),
-                "why2": ai_suggestion.get("why2", ""),
-                "why3": ai_suggestion.get("why3", ""),
-                "why4": ai_suggestion.get("why4", ""),
-                "root_cause": ai_suggestion.get("root_cause", "")
-            },
-            "user_adjustment": {
-                "why1": rc.user_adjusted_why1 or "",
-                "why2": rc.user_adjusted_why2 or "",
-                "why3": rc.user_adjusted_why3 or "",
-                "why4": rc.user_adjusted_why4 or "",
-                "root_cause": rc.user_adjusted_root_cause or ""
-            },
-            "timestamp": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        # Prepare data for new structured columns
+        ai_suggestion_data = {
+            "why1": ai_suggestion.get("why1", ""),
+            "why2": ai_suggestion.get("why2", ""),
+            "why3": ai_suggestion.get("why3", ""),
+            "why4": ai_suggestion.get("why4", ""),
+            "root_cause": ai_suggestion.get("root_cause", "")
         }
+
+        # Get the list of user-adjusted whys
+        # This uses the property that returns a list
+        user_whys_list = rc.user_adjusted_whys
 
         # Create new AI knowledge base entry
         new_knowledge = AIKnowledgeBase(
+            capa_id=capa_id,
             source_type="rca_adjustment",
-            source_id=capa_id,
-            knowledge_data=json.dumps(knowledge_entry),
-            created_at=datetime.utcnow()
+            machine_name=issue.machine_name,
+            issue_description=issue.issue_description,
+            # Store the list of whys directly in the new column
+            adjusted_whys_json=json.dumps(user_whys_list),
+            created_at=datetime.utcnow(),
+            is_active=True
+            # No adjusted_temporary_actions_json or adjusted_preventive_actions_json for RCA
         )
 
         db.session.add(new_knowledge)
@@ -111,31 +104,40 @@ def store_action_plan_learning(capa_id):
         ai_suggestion = json.loads(ap.ai_suggested_actions_json)
         user_adjustment = json.loads(ap.user_adjusted_actions_json)
 
-        # Prepare knowledge entry
-        knowledge_entry = {
-            "issue_context": {
-                "customer_name": issue.customer_name,
-                "item_involved": issue.item_involved,
-                "issue_description": issue.issue_description,
-                "root_cause": issue.root_cause.user_adjusted_root_cause if issue.root_cause else None
-            },
-            "ai_suggestion": {
-                "temporary_actions": ai_suggestion.get("temporary_action", []),
-                "preventive_actions": ai_suggestion.get("preventive_action", [])
-            },
-            "user_adjustment": {
-                "temporary_actions": user_adjustment.get("temp_actions", []),
-                "preventive_actions": user_adjustment.get("prev_actions", [])
-            },
-            "timestamp": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        # Prepare data for new structured columns
+        ai_suggestion_data = {
+            "temporary_actions": ai_suggestion.get("temporary_action", []),
+            "preventive_actions": ai_suggestion.get("preventive_action", [])
         }
+
+        # user_adjustment is already a dict from json.loads(ap.user_adjusted_actions_json)
+        # It contains 'temp_actions' and 'prev_actions' lists of dictionaries.
+
+        # Extract only the action text strings as requested
+        temp_action_texts = [action.get('action_text', '') for action in user_adjustment.get(
+            'temp_actions', []) if action.get('action_text')]
+        prev_action_texts = [action.get('action_text', '') for action in user_adjustment.get(
+            'prev_actions', []) if action.get('action_text')]
+
+        # Fetch the corresponding adjusted 5 Whys for this CAPA
+        final_whys_json = None
+        if issue.root_cause:
+            # Directly use the stored JSON string from RootCause model
+            final_whys_json = issue.root_cause.user_adjusted_whys_json
 
         # Create new AI knowledge base entry
         new_knowledge = AIKnowledgeBase(
+            capa_id=capa_id,
             source_type="action_plan_adjustment",
-            source_id=capa_id,
-            knowledge_data=json.dumps(knowledge_entry),
-            created_at=datetime.utcnow()
+            machine_name=issue.machine_name,
+            issue_description=issue.issue_description,
+            # Store the simplified lists of action texts in the new columns
+            adjusted_temporary_actions_json=json.dumps(temp_action_texts),
+            adjusted_preventive_actions_json=json.dumps(prev_action_texts),
+            # Store the associated 5 Whys JSON
+            adjusted_whys_json=final_whys_json,
+            created_at=datetime.utcnow(),
+            is_active=True
         )
 
         db.session.add(new_knowledge)
@@ -156,95 +158,110 @@ def store_action_plan_learning(capa_id):
         return False
 
 
-def get_relevant_action_plan_knowledge(issue_description, root_cause=None, limit=5):
+def get_relevant_action_plan_knowledge(current_capa_issue_description, current_capa_machine_name, current_capa_user_adjusted_whys_json, limit=5):
     """
-    Retrieves relevant action plan knowledge from the knowledge base based on the issue description
-    and root cause. Currently uses a simple keyword matching approach.
-
-    In a production environment, you would use a more sophisticated similarity search,
-    vector embeddings, or semantic search.
+    Retrieves relevant action plan knowledge (temp/prev action texts) from the knowledge base.
+    Filters by:
+    1. source_type = 'action_plan_adjustment'.
+    2. Matching machine_name.
+    3. Matching issue_description (keywords/substrings).
+    4. Matching 5 Whys stored in the 'adjusted_whys_json' column of the action plan entry.
+    Returns max `limit` entries.
     """
-    knowledge_entries = AIKnowledgeBase.query.filter_by(source_type="action_plan_adjustment").order_by(
-        AIKnowledgeBase.created_at.desc()).limit(20).all()
+    query = AIKnowledgeBase.query.filter_by(
+        source_type="action_plan_adjustment", is_active=True)
 
-    # Simple keyword matching (could be improved with embeddings/vector search)
-    relevant_entries = []
-    search_text = (issue_description + " " + (root_cause or "")).lower()
+    if current_capa_machine_name:
+        query = query.filter(AIKnowledgeBase.machine_name ==
+                             current_capa_machine_name)
 
-    for entry in knowledge_entries:
-        try:
-            knowledge_data = json.loads(entry.knowledge_data)
-            context = knowledge_data.get("issue_context", {})
+    if current_capa_issue_description:
+        search_term = f"%{current_capa_issue_description.lower()}%"
+        query = query.filter(db.func.lower(
+            AIKnowledgeBase.issue_description).like(search_term))
 
-            # Calculate a simple matching score based on keyword overlap
-            context_text = (
-                (context.get("issue_description", "") or "") + " " +
-                (context.get("root_cause", "") or "")
-            ).lower()
+    # Deserialize current CAPA's 5 Whys for comparison
+    try:
+        current_whys_list = json.loads(current_capa_user_adjusted_whys_json)
+        if not isinstance(current_whys_list, list):
+            current_whys_list = []
+    except (json.JSONDecodeError, TypeError):
+        current_whys_list = []
 
-            # Very simple similarity score (would be replaced by better methods)
-            words1 = set(search_text.split())
-            words2 = set(context_text.split())
-            common_words = words1.intersection(words2)
+    # Get potential action plan matches first, then filter by 5 whys in Python
+    potential_ap_entries = query.order_by(
+        AIKnowledgeBase.created_at.desc()).all()
 
-            if len(common_words) > 0:
-                similarity = len(common_words) / (len(words1) +
-                                                  len(words2) - len(common_words))
+    results = []
+    for entry in potential_ap_entries:
+        if len(results) >= limit:
+            break
 
-                relevant_entries.append({
-                    "entry": knowledge_data,
-                    "score": similarity
-                })
-        except:
+        if not entry.adjusted_whys_json:  # Check if the action plan entry has associated whys
             continue
 
-    # Sort by score and get top entries
-    relevant_entries.sort(key=lambda x: x["score"], reverse=True)
-    return [entry["entry"] for entry in relevant_entries[:limit]]
-
-
-def get_relevant_rca_knowledge(issue_description, gemba_findings=None, limit=5):
-    """
-    Retrieves relevant RCA knowledge from the knowledge base based on the issue description 
-    and gemba findings. Currently uses a simple keyword matching approach.
-
-    In a production environment, you would use a more sophisticated similarity search,
-    vector embeddings, or semantic search.
-    """
-    knowledge_entries = AIKnowledgeBase.query.filter_by(source_type="rca_adjustment").order_by(
-        AIKnowledgeBase.created_at.desc()).limit(20).all()
-
-    # Simple keyword matching (could be improved with embeddings/vector search)
-    relevant_entries = []
-    search_text = (issue_description + " " + (gemba_findings or "")).lower()
-
-    for entry in knowledge_entries:
         try:
-            knowledge_data = json.loads(entry.knowledge_data)
-            context = knowledge_data.get("issue_context", {})
+            # Compare current whys with the whys stored in this action plan entry
+            past_whys_list = json.loads(entry.adjusted_whys_json)
+            if not isinstance(past_whys_list, list):
+                continue  # Skip if the stored JSON is not a list
 
-            # Calculate a simple matching score based on keyword overlap
-            context_text = (
-                (context.get("issue_description", "") or "") + " " +
-                (context.get("gemba_findings", "") or "")
-            ).lower()
-
-            # Very simple similarity score (would be replaced by better methods)
-            words1 = set(search_text.split())
-            words2 = set(context_text.split())
-            common_words = words1.intersection(words2)
-
-            if len(common_words) > 0:
-                similarity = len(common_words) / (len(words1) +
-                                                  len(words2) - len(common_words))
-
-                relevant_entries.append({
-                    "entry": knowledge_data,
-                    "score": similarity
+            # Simple 5 Why matching (exact list match, order-agnostic)
+            if current_whys_list and past_whys_list and sorted(current_whys_list) == sorted(past_whys_list):
+                # If whys match, add the action plan data to results
+                temp_actions = entry.adjusted_temporary_actions_json or "[]"
+                prev_actions = entry.adjusted_preventive_actions_json or "[]"
+                results.append({
+                    "adjusted_temporary_actions": temp_actions,
+                    "adjusted_preventive_actions": prev_actions,
+                    "context": {
+                        "machine_name": entry.machine_name,
+                        "issue_description": entry.issue_description,
+                        "source_capa_id": entry.capa_id
+                    }
                 })
-        except:
-            continue
+        # Add the except block back to handle potential errors during JSON parsing or comparison
+        except (json.JSONDecodeError, TypeError):
+            continue  # Skip entries with malformed JSON or unexpected types
 
-    # Sort by score and get top entries
-    relevant_entries.sort(key=lambda x: x["score"], reverse=True)
-    return [entry["entry"] for entry in relevant_entries[:limit]]
+    return results  # Return the list of action plan results
+
+
+def get_relevant_rca_knowledge(current_capa_issue_description, current_capa_machine_name, limit=5):
+    """
+    Retrieves relevant RCA knowledge (adjusted 5 whys) from the knowledge base based on:
+    1. Matching machine_name.
+    2. Matching issue_description (keywords/substrings).
+    Returns max `limit` entries.
+    """
+    query = AIKnowledgeBase.query.filter_by(
+        source_type="rca_adjustment", is_active=True)
+
+    if current_capa_machine_name:
+        query = query.filter(AIKnowledgeBase.machine_name ==
+                             current_capa_machine_name)
+
+    # Issue description matching (case-insensitive substring)
+    if current_capa_issue_description:
+        # Simple keyword matching: split description and search for each word
+        # More robust: use LIKE for substring matching
+        search_term = f"%{current_capa_issue_description.lower()}%"
+        query = query.filter(db.func.lower(
+            AIKnowledgeBase.issue_description).like(search_term))
+
+    knowledge_entries = query.order_by(
+        AIKnowledgeBase.created_at.desc()).limit(limit).all()
+
+    results = []
+    for entry in knowledge_entries:
+        # Return the adjusted whys JSON and the context
+        if entry.adjusted_whys_json:  # Ensure the data exists
+            results.append({
+                "adjusted_whys": entry.adjusted_whys_json,  # JSON string of the 5 whys list
+                "context": {
+                    "machine_name": entry.machine_name,
+                    "issue_description": entry.issue_description,
+                    "source_capa_id": entry.capa_id  # ID of the CAPA this knowledge came from
+                }
+            })
+    return results

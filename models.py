@@ -147,12 +147,29 @@ class GembaInvestigation(db.Model):
 class AIKnowledgeBase(db.Model):
     __tablename__ = 'ai_knowledge_base'
     knowledge_id = db.Column(db.Integer, primary_key=True)
-    # e.g., 'rca_adjustment', 'action_plan_adjustment', etc.
+    capa_id = db.Column(db.Integer, db.ForeignKey(
+        'capa_issues.capa_id'), nullable=False)
+    # e.g., 'rca_adjustment', 'action_plan_adjustment'
     source_type = db.Column(db.String(50), nullable=False)
-    # ID of the source record (e.g., capa_id)
-    source_id = db.Column(db.Integer, nullable=False)
-    # JSON string containing the knowledge data
-    knowledge_data = db.Column(db.Text, nullable=False)
+
+    # Contextual information duplicated for easier querying and filtering
+    machine_name = db.Column(db.String(200), nullable=True)
+    issue_description = db.Column(db.Text, nullable=True)
+
+    # User-adjusted data, specific to the source_type
+    # For source_type = 'rca_adjustment'
+    # Stores JSON array of why strings
+    adjusted_whys_json = db.Column(db.Text, nullable=True)
+
+    # For source_type = 'action_plan_adjustment'
+    # Stores JSON array of action text strings (simplified, no PIC, due_date etc.)
+    adjusted_temporary_actions_json = db.Column(db.Text, nullable=True)
+    adjusted_preventive_actions_json = db.Column(db.Text, nullable=True)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     # Flag to disable/enable knowledge entries
     is_active = db.Column(db.Boolean, default=True)
+
+    # Relationship to CapaIssue
+    capa_issue = db.relationship('CapaIssue', backref=db.backref(
+        'knowledge_entries', lazy='dynamic'))

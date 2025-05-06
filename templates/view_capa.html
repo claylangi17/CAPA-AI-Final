@@ -357,12 +357,13 @@
         <div class="mb-3 why-item">
             <div class="d-flex align-items-center mb-2">
                 <label class="form-label mb-0 flex-grow-1">Mengapa {{ loop.index }}:</label>
-                {% if not loop.first %}
+                {% if not loop.first and issue.status != 'Closed' %}
                 <button type="button" class="btn btn-sm btn-outline-danger remove-why-btn ms-2"><i
                         class="fas fa-times"></i></button>
                 {% endif %}
             </div>
-            <textarea class="form-control why-input" name="why_{{ loop.index }}" rows="2" required>{{ why }}</textarea>
+            <textarea class="form-control why-input" name="why_{{ loop.index }}" rows="2" required {% if
+                issue.status=='Closed' %}readonly{% endif %}>{{ why }}</textarea>
         </div>
         {% endfor %}
         {% else %}
@@ -371,53 +372,59 @@
             <div class="d-flex align-items-center mb-2">
                 <label class="form-label mb-0 flex-grow-1">Mengapa 1:</label>
             </div>
-            <textarea class="form-control why-input" name="why_1" rows="2"
-                required>{{ issue.root_cause.user_adjusted_why1 or rca_data.get('why1', '') }}</textarea>
+            <textarea class="form-control why-input" name="why_1" rows="2" required {% if issue.status=='Closed'
+                %}readonly{% endif %}>{{ issue.root_cause.user_adjusted_why1 or rca_data.get('why1', '') }}</textarea>
         </div>
         <div class="mb-3 why-item">
             <div class="d-flex align-items-center mb-2">
                 <label class="form-label mb-0 flex-grow-1">Mengapa 2:</label>
-                <button type="button" class="btn btn-sm btn-outline-danger remove-why-btn ms-2"><i
-                        class="fas fa-times"></i></button>
+                {% if issue.status != 'Closed' %}<button type="button"
+                    class="btn btn-sm btn-outline-danger remove-why-btn ms-2"><i class="fas fa-times"></i></button>{%
+                endif %}
             </div>
-            <textarea class="form-control why-input" name="why_2"
-                rows="2">{{ issue.root_cause.user_adjusted_why2 or rca_data.get('why2', '') }}</textarea>
+            <textarea class="form-control why-input" name="why_2" rows="2" {% if issue.status=='Closed' %}readonly{%
+                endif %}>{{ issue.root_cause.user_adjusted_why2 or rca_data.get('why2', '') }}</textarea>
         </div>
         <div class="mb-3 why-item">
             <div class="d-flex align-items-center mb-2">
                 <label class="form-label mb-0 flex-grow-1">Mengapa 3:</label>
-                <button type="button" class="btn btn-sm btn-outline-danger remove-why-btn ms-2"><i
-                        class="fas fa-times"></i></button>
+                {% if issue.status != 'Closed' %}<button type="button"
+                    class="btn btn-sm btn-outline-danger remove-why-btn ms-2"><i class="fas fa-times"></i></button>{%
+                endif %}
             </div>
-            <textarea class="form-control why-input" name="why_3"
-                rows="2">{{ issue.root_cause.user_adjusted_why3 or rca_data.get('why3', '') }}</textarea>
+            <textarea class="form-control why-input" name="why_3" rows="2" {% if issue.status=='Closed' %}readonly{%
+                endif %}>{{ issue.root_cause.user_adjusted_why3 or rca_data.get('why3', '') }}</textarea>
         </div>
         <div class="mb-3 why-item">
             <div class="d-flex align-items-center mb-2">
                 <label class="form-label mb-0 flex-grow-1">Mengapa 4:</label>
-                <button type="button" class="btn btn-sm btn-outline-danger remove-why-btn ms-2"><i
-                        class="fas fa-times"></i></button>
+                {% if issue.status != 'Closed' %}<button type="button"
+                    class="btn btn-sm btn-outline-danger remove-why-btn ms-2"><i class="fas fa-times"></i></button>{%
+                endif %}
             </div>
-            <textarea class="form-control why-input" name="why_4"
-                rows="2">{{ issue.root_cause.user_adjusted_why4 or rca_data.get('why4', '') }}</textarea>
+            <textarea class="form-control why-input" name="why_4" rows="2" {% if issue.status=='Closed' %}readonly{%
+                endif %}>{{ issue.root_cause.user_adjusted_why4 or rca_data.get('why4', '') }}</textarea>
         </div>
         <div class="mb-3 why-item">
             <div class="d-flex align-items-center mb-2">
                 <label class="form-label mb-0 flex-grow-1">Mengapa 5:</label>
-                <button type="button" class="btn btn-sm btn-outline-danger remove-why-btn ms-2"><i
-                        class="fas fa-times"></i></button>
+                {% if issue.status != 'Closed' %}<button type="button"
+                    class="btn btn-sm btn-outline-danger remove-why-btn ms-2"><i class="fas fa-times"></i></button>{%
+                endif %}
             </div>
-            <textarea class="form-control why-input" name="why_5"
-                rows="2">{{ issue.root_cause.user_adjusted_root_cause or rca_data.get('root_cause', '') }}</textarea>
+            <textarea class="form-control why-input" name="why_5" rows="2" {% if issue.status=='Closed' %}readonly{%
+                endif %}>{{ issue.root_cause.user_adjusted_root_cause or rca_data.get('root_cause', '') }}</textarea>
         </div>
         {% endif %}
     </div>
 
+    {% if issue.status != 'Closed' %}
     <div class="mb-3">
         <button type="button" id="add-why-btn" class="btn btn-sm btn-outline-primary">
             <i class="fas fa-plus"></i> Tambah Why
         </button>
     </div>
+    {% endif %}
 
     <button type="submit" class="btn btn-primary" id="submit-rca-btn" {% if issue.status=='Closed' %}disabled{% endif
         %}>{% if issue.status == 'Closed' %}Akar Masalah Terkunci{% else %}Kirim Akar Masalah yang Disesuaikan{% endif
