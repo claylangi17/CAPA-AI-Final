@@ -1,7 +1,7 @@
 [x] Inject knowledge ke ainya
 [x] Flow process harus jelas dulu, biar toolsnya gk disalahkan gunakan (gemba dulu -> Baru pakai ke website ->)
 [x] AInya bisa baca history dan ada pilihan root cause dulu.
-[ ] konek ke data baan untuk nyari lotnya/ batch mana yang harusnya di tarik (karna harus lapor ke danon, wajib tau batch) tracebility
+[ ] konek ke data baan untuk nyari lotnya/ batch mana yang harusnya di tarik (karna harus lapor ke danon, wajib tau batch) tracebility (optional)
 [ ] Simulasi biaya ainya per satu bulan kira kira bisa berapa
 [x] Table beda untuk dibaca ai agar future usenya
 [x] Revise table ai knowledgenya
