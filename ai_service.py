@@ -274,7 +274,8 @@ def trigger_rca_analysis(capa_id):
     Lakukan analisis 5 Why berdasarkan Detail Masalah yang diberikan DAN hasil investigasi Gemba dari lapangan.
     PENTING: Gunakan informasi hasil Gemba (terutama akar masalah yang dicurigai) sebagai masukan utama untuk analisis Anda,
     tapi pastikan bahwa Anda melakukan analisis 5 Why yang logis dan mendalam.
-    Berikan semua hasil dalam Bahasa Indonesia.
+    Berikan semua hasil dalam Bahasa Indonesia, Berikan jawaban yang tegas dan spesifik tanpa keraguan,Hindari penggunaan tanda "/" dalam jawaban, 
+    Pilih satu istilah yang paling tepat, jangan memberikan alternatif.
     """
 
     # Log the knowledge enhancement using the count of successfully processed items
@@ -722,7 +723,8 @@ def trigger_action_plan_recommendation(capa_id):
 
     OUTPUT harus merupakan JSON yang valid dan sederhana. Hanya berisi array langkah-langkah tindakan yang perlu dilakukan.
     Buat 3-4 langkah tindakan sementara dan 2-3 langkah tindakan pencegahan yang spesifik dan relevan dengan masalah tersebut.
-    Pastikan semuanya dalam Bahasa Indonesia.
+    Pastikan semuanya dalam Bahasa Indonesia, Berikan jawaban yang tegas dan spesifik tanpa keraguan,Hindari penggunaan tanda "/" dalam jawaban, 
+    Pilih satu istilah yang paling tepat, jangan memberikan alternatif.
     """
 
     # Log the knowledge enhancement using the count of successfully processed items
