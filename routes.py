@@ -3,10 +3,11 @@ from werkzeug.utils import secure_filename
 from datetime import datetime
 import os
 import json
+from sqlalchemy import distinct
 
-from models import db, CapaIssue, RootCause, ActionPlan, Evidence, GembaInvestigation
+from models import db, CapaIssue, RootCause, ActionPlan, Evidence, GembaInvestigation, AIKnowledgeBase
 from ai_service import trigger_rca_analysis, trigger_action_plan_recommendation
-from ai_learning import store_knowledge_on_capa_close  # Updated import
+from ai_learning import store_knowledge_on_capa_close
 from utils import allowed_file
 from config import UPLOAD_FOLDER
 
@@ -17,6 +18,21 @@ def register_routes(app):
         issues = CapaIssue.query.order_by(
             CapaIssue.submission_timestamp.desc()).all()
         return render_template('index.html', issues=issues)
+
+    @app.route('/api/machine_names')
+    def api_machine_names():
+        try:
+            # Query for distinct, non-null, non-empty machine names from AIKnowledgeBase, ordered alphabetically
+            machine_names_query = db.session.query(distinct(AIKnowledgeBase.machine_name)) \
+                .filter(AIKnowledgeBase.machine_name.isnot(None), AIKnowledgeBase.machine_name != '') \
+                .order_by(AIKnowledgeBase.machine_name).all()
+
+            # Extract the names from the query result (list of tuples)
+            machine_names = [name[0] for name in machine_names_query]
+            return jsonify(machine_names)
+        except Exception as e:
+            app.logger.error(f"Error fetching machine names: {e}")
+            return jsonify({'error': 'Could not fetch machine names'}), 500
 
     @app.route('/gemba/<int:capa_id>', methods=['GET', 'POST'])
     def gemba_investigation(capa_id):
@@ -37,7 +53,7 @@ def register_routes(app):
         if request.method == 'POST':
             # Get form data with findings and multiple photos
             findings = request.form.get('gemba_findings')
-            gemba_photos = request.files.getlist('gemba_photos')
+            gemba_photos = request.files.getlist('gemba_photos[]')
 
             # Basic validation
             if not findings or not gemba_photos:
@@ -222,7 +238,12 @@ def register_routes(app):
             rc.user_adjusted_why3 = why_inputs[2]
         if len(why_inputs) > 3:
             rc.user_adjusted_why4 = why_inputs[3]
+        # Always set the root cause to the last entered 'why'
+        if why_inputs:  # Ensure there is at least one why
+            rc.user_adjusted_root_cause = why_inputs[-1]
+        # The following line is now redundant if why_inputs has 5 or more items, but harmless
         if len(why_inputs) > 4:
+            # Keeps explicit 5th why logic if needed, but covered above
             rc.user_adjusted_root_cause = why_inputs[4]
 
         # Update issue status

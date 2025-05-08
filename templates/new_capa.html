@@ -23,7 +23,9 @@
     </div>
     <div class="mb-3">
       <label for="machine_name" class="form-label required-field">Machine Name</label>
-      <input type="text" class="form-control" id="machine_name" name="machine_name" placeholder="Enter the machine name" required>
+      <select class="form-control" id="machine_name_select" name="machine_name_select"></select>
+      <input type="text" class="form-control mt-2" id="machine_name_other" name="machine_name_other" placeholder="Enter machine name if not in list" style="display: none;">
+      <input type="hidden" id="machine_name" name="machine_name"> 
     </div>
     <div class="mb-3">
       <label for="batch_number" class="form-label">Batch number/ SPK</label>
@@ -40,8 +42,99 @@
     <div class="mb-3">
       <label for="initial_photo" class="form-label required-field">Initial Issue Photo</label>
       <input class="form-control" type="file" id="initial_photo" name="initial_photo" accept="image/*" required>
+      <div id="newCapaUploadIndicator" style="display: none; margin-top: 10px; text-align: center;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p>Mengunggah berkas, mohon tunggu...</p>
+      </div>
     </div>
     <button type="submit" class="btn btn-primary">Submit Issue</button>
     <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancel</a>
   </form>
+  <script>
+  document.addEventListener('DOMContentLoaded', function () {
+      const newCapaForm = document.getElementById('initial_photo')?.form;
+      if (newCapaForm) {
+          newCapaForm.addEventListener('submit', function(event) { 
+              const uploadIndicator = document.getElementById('newCapaUploadIndicator');
+              if (uploadIndicator) {
+                  uploadIndicator.style.display = 'block';
+              }
+              const submitButton = newCapaForm.querySelector('button[type="submit"]');
+              if (submitButton) {
+                  submitButton.disabled = true;
+                  submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Mengirim...';
+              }
+
+              const machineNameSelect = document.getElementById('machine_name_select');
+              const machineNameOtherInput = document.getElementById('machine_name_other');
+              const finalMachineNameInput = document.getElementById('machine_name');
+
+              if (machineNameSelect.value === 'other_option') {
+                  finalMachineNameInput.value = machineNameOtherInput.value.trim();
+                  if (!finalMachineNameInput.value) {
+                      alert('Please enter the machine name if you selected "Other".');
+                      event.preventDefault(); 
+                      if (uploadIndicator) uploadIndicator.style.display = 'none';
+                      if (submitButton) {
+                          submitButton.disabled = false;
+                          submitButton.innerHTML = 'Submit Issue';
+                      }
+                      return;
+                  }
+              } else {
+                  finalMachineNameInput.value = machineNameSelect.value;
+              }
+          });
+      }
+
+      const machineNameSelectElement = document.getElementById('machine_name_select');
+      const machineNameOtherElement = document.getElementById('machine_name_other');
+      
+      if (machineNameSelectElement) {
+          const choices = new Choices(machineNameSelectElement, {
+              searchEnabled: true,
+              itemSelectText: 'Tekan untuk memilih',
+              removeItemButton: true,
+              placeholder: true,
+              placeholderValue: 'Pilih atau cari nama mesin...',
+              allowHTML: true
+          });
+
+          fetch('{{ url_for("api_machine_names") }}')
+              .then(response => response.json())
+              .then(data => {
+                  let machineOptions = [];
+                  if (data && data.length > 0) {
+                      machineOptions = data.map(name => ({ value: name, label: name }));
+                  }
+                  // Add 'Other' option to the list
+                  machineOptions.push({ value: 'other_option', label: '<b>Lainnya (input manual)...</b>', customProperties: { isOther: true } });
+                  
+                  // Set all choices at once, replacing placeholder/initial choices
+                  choices.setChoices(machineOptions, 'value', 'label', true);
+              })
+              .catch(error => {
+                  console.error('Error fetching machine names:', error);
+                  // If fetch fails, still provide the 'Other' option
+                  choices.setChoices([
+                      { value: 'other_option', label: '<b>Lainnya (input manual)...</b>', customProperties: { isOther: true } }
+                  ], 'value', 'label', true);
+              });
+
+          machineNameSelectElement.addEventListener('change', function(event) {
+              if (event.detail.value === 'other_option') {
+                  machineNameOtherElement.style.display = 'block';
+                  machineNameOtherElement.required = true;
+                  machineNameOtherElement.focus();
+              } else {
+                  machineNameOtherElement.style.display = 'none';
+                  machineNameOtherElement.required = false;
+                  machineNameOtherElement.value = ''; 
+              }
+          });
+      }
+  });
+  </script>
 {% endblock %}

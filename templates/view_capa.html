@@ -1143,7 +1143,8 @@
                                 <p class="card-text">{{ ev.evidence_description | nl2br }}</p>
                                 {% endif %}
                                 <p class="card-text"><small class="text-muted">Diajukan: {{
-                                        ev.evidence_submission_timestamp.strftime('%Y-%m-%d %H:%M') }}</small></p>
+                                        ev.evidence_submission_timestamp.strftime('%Y-%m-%d
+                                        %H:%M') }}</small></p>
                             </div>
                         </div>
                     </div>
@@ -1221,6 +1222,12 @@
                                 accept="image/*">
                             <img src="" id="current_evidence_photo" alt="Foto Bukti Saat Ini"
                                 style="max-width: 100%; max-height: 200px; margin-top: 10px;">
+                            <div id="editEvidenceUploadIndicator" style="display: none; margin-top: 10px; text-align: center;">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p>Mengunggah berkas, mohon tunggu...</p>
+                            </div>
                         </div>
                         <button type="submit" class="btn btn-primary">Simpan Perubahan</button>
                     </form>
@@ -1241,7 +1248,7 @@
                     var imgDate = e.target.getAttribute('data-img-date') || '';
                     modalImg.src = imgSrc;
                     document.getElementById('modalEvidenceDesc').textContent = imgDesc;
-                    document.getElementById('modalEvidenceDate').textContent = imgDate ? 'Diajukan pada: ' + imgDate : '';
+                    document.getElementById('modalEvidenceDate').textContent = imgDate;
                     var modal = new bootstrap.Modal(evidenceModal);
                     modal.show();
                 }
@@ -1284,6 +1291,23 @@
                 document.body.style.overflow = '';
                 document.body.style.paddingRight = '';
             });
+
+            // Edit evidence form submit animation
+            const editEvidenceForm = document.getElementById('edit_evidence_photo')?.form;
+            if (editEvidenceForm) {
+                editEvidenceForm.addEventListener('submit', function() {
+                    const uploadIndicator = document.getElementById('editEvidenceUploadIndicator');
+                    if (uploadIndicator) {
+                        uploadIndicator.style.display = 'block';
+                    }
+                    // Disable button to prevent multiple submissions
+                    const submitButton = editEvidenceForm.querySelector('button[type="submit"]');
+                    if (submitButton) {
+                        submitButton.disabled = true;
+                        submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Mengunggah...';
+                    }
+                });
+            }
         });
     </script>
 

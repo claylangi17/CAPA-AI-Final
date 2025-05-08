@@ -27,9 +27,10 @@
 [x] perbaiki loading screen pada halaman action plan (ketika submit)
 [ ] Perbaiki UI loading screen
 [x] Ketika kirim bukti, jangan pergi ke page paling atas, tapi dia stay di bagian Pengajuan Bukti
-[ ] Fix sematic search di action plan 
+[x] Fix sematic search di action plan 
 [ ] Ganti API key tiap project (CAPA and GEMBA)
-[ ] Ganti semantic search pakai yang free
+[x] Ganti semantic search pakai yang free
+[x] Animasi loading pada saat upload file 
 
 Flow:
 masukin case (Batch, Jumlah reject) -> required untuk gemba (Foto, deskripsi real issue) -> RCA -> Action plan -> evidence

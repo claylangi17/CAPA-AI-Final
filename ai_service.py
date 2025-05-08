@@ -109,75 +109,8 @@ def trigger_rca_analysis(capa_id):
     relevant_knowledge = get_relevant_rca_knowledge(
         current_capa_issue_description=issue.issue_description,
         current_capa_machine_name=issue.machine_name,
-        limit=10  # Meningkatkan jumlah maksimum referensi yang diambil
+        limit=5  # Meningkatkan jumlah maksimum referensi yang diambil
     )
-
-    # --- Helper function to parse action lists robustly ---
-    # NOTE: This helper is defined here but used in trigger_action_plan_recommendation
-    # It's placed here just for code organization within the file.
-    def _parse_action_list(json_str, capa_id_str, action_type_name):
-        """Helper to parse action list JSON, handling plain strings and skipping empty/meaningless data."""
-        if not json_str or (isinstance(json_str, str) and not json_str.strip()):
-            print(
-                f"Warning: Empty {action_type_name} data for CAPA ID {capa_id_str}")
-            return []
-
-        # Try JSON decode first
-        try:
-            parsed_data = json.loads(json_str)
-            if isinstance(parsed_data, list):
-                # Handle list of dictionaries with 'langkah' key
-                if parsed_data and isinstance(parsed_data[0], dict) and 'langkah' in parsed_data[0]:
-                    result = [item.get('langkah', '').strip(
-                    ) for item in parsed_data if item.get('langkah', '').strip()]
-                    if result:
-                        return result
-
-                # Handle simple list of strings or other values
-                result = [str(item).strip()
-                          for item in parsed_data if str(item).strip()]
-                if result:
-                    return result
-
-                print(
-                    f"Warning: List in {action_type_name} for CAPA ID {capa_id_str} contains no meaningful items")
-                return []
-
-            elif isinstance(parsed_data, dict):
-                # Handle dictionary format
-                if 'temporary_action' in parsed_data or 'preventive_action' in parsed_data:
-                    # Extract from standard format
-                    key = 'temporary_action' if 'temporary_action' in parsed_data else 'preventive_action'
-                    actions = parsed_data.get(key, [])
-                    if isinstance(actions, list):
-                        result = []
-                        for item in actions:
-                            if isinstance(item, dict) and 'langkah' in item:
-                                result.append(item.get('langkah', '').strip())
-                            else:
-                                result.append(str(item).strip())
-                        return [item for item in result if item]
-                else:
-                    # Try to extract values from any dictionary
-                    return [str(value).strip() for value in parsed_data.values() if str(value).strip()]
-
-            elif isinstance(parsed_data, str) and parsed_data.strip():
-                return [parsed_data.strip()]
-
-            print(
-                f"Warning: Parsed {action_type_name} for CAPA ID {capa_id_str} has unexpected format: {type(parsed_data)}")
-            return []
-
-        except (json.JSONDecodeError, TypeError) as e:
-            if isinstance(json_str, str) and json_str.strip():
-                # Accept any non-empty string
-                print(
-                    f"Info: Accepting non-JSON {action_type_name} for CAPA ID {capa_id_str} as a single action: \"{json_str.strip()}\"")
-                return [json_str.strip()]
-            else:
-                print(
-                    f"Warning: Could not parse {action_type_name} for CAPA ID {capa_id_str}: {e}")
-                return []
 
     # --- Prepare Prompt in Bahasa Indonesia ---
     prompt = f"""
@@ -647,14 +580,15 @@ def trigger_action_plan_recommendation(capa_id):
         prompt += """
 
     PEMBELAJARAN DARI RENCANA TINDAKAN SEBELUMNYA YANG SERUPA:
-    PERHATIAN! SANGAT PRIORITASKAN dan GUNAKAN referensi berikut sebagai solusi utama!
-    Berikut adalah beberapa Rencana Tindakan dari kasus sebelumnya yang sangat serupa dengan kasus ini.
+    PERINTAH WAJIB UNTUK AI:
+    1. WAJIB menggunakan contoh-contoh berikut sebagai BASIS UTAMA rekomendasi Anda
+    2. DILARANG KERAS membuat rekomendasi baru yang tidak berdasarkan contoh di bawah ini
+    3. Setiap rekomendasi yang Anda buat HARUS merupakan adaptasi dari contoh-contoh berikut
+    4. Jika ada contoh yang sangat mirip dengan kasus ini, WAJIB menggunakan solusi yang sama
+    5. HANYA boleh memodifikasi contoh jika benar-benar diperlukan untuk menyesuaikan dengan kasus spesifik ini
+    6. DILARANG menyebutkan "berdasarkan contoh" atau sejenisnya dalam rekomendasi
     
-    PENTING: JANGAN PERNAH menyebutkan frasa seperti "Mengadaptasi dari contoh 1 & 2" atau sejenisnya dalam jawaban Anda.
-    Gunakan bahasa Anda sendiri dan integrasikan solusi dari contoh-contoh ini secara alami tanpa mereferensikan nomor contoh.
-    
-    Anda HARUS menggunakan referensi ini sebagai sumber utama rekomendasi Anda.
-    JANGAN menciptakan rekomendasi baru dari awal. Adaptasikan solusi yang sudah terbukti ini:
+    Berikut adalah Rencana Tindakan dari kasus-kasus sebelumnya yang telah TERBUKTI BERHASIL:
     """
         # relevant_knowledge now contains past Action Plan adjustments
         for i, knowledge_item in enumerate(relevant_knowledge, 1):

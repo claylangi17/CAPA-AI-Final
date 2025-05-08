@@ -191,7 +191,7 @@
   </div>
   <div class="card-body">
     <form method="POST" action="{{ url_for('gemba_investigation', capa_id=issue.capa_id) }}"
-      enctype="multipart/form-data">
+      enctype="multipart/form-data" id="gembaForm">
       <div class="mb-3">
         <label for="gemba_findings" class="form-label required-field">Apa hasil temuan dari investigasi lapangan
           Anda?</label>
@@ -201,9 +201,16 @@
 
       <div class="mb-3">
         <label for="gemba_photos" class="form-label required-field">Foto Bukti</label>
-        <input class="form-control" type="file" id="gemba_photos" name="gemba_photos" accept="image/*" multiple
-          required>
-        <div class="form-text">Unggah foto bukti dari investigasi lapangan. Bisa pilih beberapa foto sekaligus.</div>
+        <input class="form-control" type="file" id="gemba_photos" name="gemba_photos[]" multiple
+          accept="image/*,.heic,.heif" required>
+        <small class="form-text text-muted">
+          Unggah foto bukti dari investigasi lapangan. Bisa pilih beberapa foto sekaligus.
+        </small>
+        <!-- Upload Indicator -->
+        <div id="gembaUploadIndicator" class="mt-2" style="display: none;">
+          <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+          Mengunggah foto bukti...
+        </div>
       </div>
 
       <div class="d-grid gap-2 d-md-flex justify-content-md-end">
@@ -222,31 +229,51 @@
 {% block scripts %}
 <script>
   document.addEventListener('DOMContentLoaded', function () {
-    const form = document.querySelector('form');
-    const loadingOverlay = document.getElementById('ai-loading-overlay');
+    const gembaForm = document.getElementById('gembaForm'); // Added ID to form
+    const aiLoadingOverlay = document.getElementById('ai-loading-overlay');
+    const submitButton = gembaForm ? gembaForm.querySelector('button[type="submit"]') : null;
+    const gembaPhotosInput = document.getElementById('gemba_photos');
+    const gembaUploadIndicator = document.getElementById('gembaUploadIndicator');
 
-    if (form) {
-      form.addEventListener('submit', function (e) {
-        // Validasi form
-        if (form.checkValidity()) {
-          // Tampilkan loading overlay
-          loadingOverlay.classList.remove('d-none');
-
-          // Animasi tambahan untuk brain paths
-          const brainPaths = document.querySelectorAll('.ai-brain-path');
-          brainPaths.forEach(path => {
-            setInterval(() => {
-              path.style.stroke = getRandomColor();
-            }, 3000);
-          });
+    // Show upload indicator briefly when files are selected
+    if (gembaPhotosInput && gembaUploadIndicator) {
+      gembaPhotosInput.addEventListener('change', function() {
+        if (gembaPhotosInput.files.length > 0) {
+          gembaUploadIndicator.style.display = 'block';
+          setTimeout(function() { // Automatically hide after a short delay
+            gembaUploadIndicator.style.display = 'none';
+          }, 2000); // Show for 2 seconds
+        } else {
+          // If selection is cleared (e.g., user deselects files)
+          gembaUploadIndicator.style.display = 'none';
         }
-        // Jika form tidak valid, browser akan menangani validasi
       });
     }
 
-    function getRandomColor() {
-      const colors = ['#3498db', '#2ecc71', '#9b59b6', '#e67e22', '#e74c3c', '#f1c40f'];
-      return colors[Math.floor(Math.random() * colors.length)];
+    if (gembaForm && submitButton) {
+      gembaForm.addEventListener('submit', function (event) {
+        // Check if textarea is empty
+        const gembaFindings = document.getElementById('gemba_findings');
+        if (gembaFindings && gembaFindings.value.trim() === '') {
+          alert('Hasil temuan dari investigasi lapangan tidak boleh kosong.');
+          event.preventDefault(); // Prevent form submission
+          return;
+        }
+
+        // Disable submit button and show AI loading overlay after a short delay
+        setTimeout(() => {
+          if (aiLoadingOverlay) {
+            aiLoadingOverlay.classList.remove('d-none');
+          }
+          if (submitButton) {
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Menganalisis...';
+          }
+        }, 100); // Small delay to allow browser to show upload indicator if needed
+
+        // Note: The form will submit after this. If there's a separate AJAX call for AI, handle it there.
+        // If the form submission itself triggers AI processing on the backend, this is fine.
+      });
     }
   });
 </script>

@@ -20,7 +20,7 @@
     *   Database ORM: **Flask-SQLAlchemy** (provides abstraction over SQL).
     *   Database: **MySQL** (chosen relational database).
     *   AI Integration: **Google Generative AI** (for RCA and Action Plan suggestions).
-    *   Semantic Search: **Google's embedding-001 model** (for finding relevant historical data).
+    *   Semantic Search: **`sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`** (via `sentence-transformers` library for finding relevant historical data).
     *   PDF Generation: **WeasyPrint** (for creating PDF reports from HTML).
     *   Configuration Management: **`.env` file** with `python-dotenv`.
     *   File Uploads: Handled directly within routes, saving to the `uploads/` folder.
@@ -39,9 +39,10 @@
     *   `routes.py`: Defines URL endpoints, handles requests, interacts with models, calls AI services, and renders templates.
     *   `templates/`: Contains Jinja2 HTML templates rendered by routes.
     *   `static/`: Holds CSS, JS, and images served directly.
-    *   `ai_service.py`: Called by routes to get AI suggestions. Interacts with `google-generativeai`. Retrieves relevant past knowledge via `ai_learning.py` to inform prompts. Contains explicit instructions in prompts to prevent AI from using phrases like "Mengadaptasi dari contoh".
+    *   `ai_service.py`: Called by routes to get AI suggestions. Interacts with `google-generativeai` for text generation. Retrieves relevant past knowledge via `ai_learning.py` to inform prompts. Contains explicit instructions in prompts to prevent AI from using phrases like "Mengadaptasi dari contoh".
     *   `ai_learning.py`:
-        *   `get_embedding`: Converts text to vector embeddings using Google's embedding-001 model for semantic search.
+        *   Initializes `SentenceTransformer` with `paraphrase-multilingual-MiniLM-L12-v2` model at module level.
+        *   `get_embedding_st` / `get_embedding_st_rca`: Converts text to vector embeddings using the initialized `sentence-transformers` model for semantic search.
         *   `get_relevant_rca_knowledge`: Uses semantic search to find relevant RCA knowledge based on issue description and machine name.
         *   `get_relevant_action_plan_knowledge`: Uses semantic search with weighted similarity (70% WHYs, 30% issue) to find relevant action plans.
         *   `store_knowledge_on_capa_close`: Called when a CAPA is closed. Creates or updates a single `AIKnowledgeBase` entry for the `capa_id`.
@@ -58,7 +59,8 @@
     *   Raw AI suggestions are not stored.
 
 *   **Semantic Search Implementation:**
-    *   Uses Google's `embedding-001` model to convert text to vector embeddings.
+    *   Uses `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` model (via `sentence-transformers` library) to convert text to vector embeddings.
+    *   The `SentenceTransformer` model is initialized once at the module level in `ai_learning.py`.
     *   Calculates cosine similarity between current issue/WHYs and historical data.
     *   Applies higher weight (70%) to WHYs similarity for action plan relevance.
     *   Uses a similarity threshold (0.3) to filter results.
@@ -74,7 +76,7 @@
 *   **Critical Implementation Paths:**
     *   **CAPA Creation:** `new_capa` route -> Saves `CapaIssue` -> Redirects to `gemba_investigation`.
     *   **Gemba Investigation:** `gemba_investigation` route -> Saves `GembaInvestigation` -> Updates `CapaIssue` status -> Triggers `trigger_rca_analysis` (`ai_service.py`).
-    *   **Root Cause Analysis (RCA):** `view_capa` displays AI suggestions (from `RootCause` model) -> `edit_rca` route saves user adjustments -> Updates `CapaIssue` status -> Triggers `trigger_action_plan_recommendation` (`ai_service.py`).
+    *   **Root Cause Analysis (RCA):** `view_capa` displays AI suggestions (from `RootCause` model) -> `edit_rca` route saves user adjustments (saves all provided Whys to `user_adjusted_whys_json` and the *last* provided Why to `user_adjusted_root_cause`) -> Updates `CapaIssue` status -> Triggers `trigger_action_plan_recommendation` (`ai_service.py`).
     *   **Action Planning:** `view_capa` displays AI suggestions (from `ActionPlan` model) -> `edit_action_plan` route saves user adjustments -> Updates `CapaIssue` status.
     *   **Evidence Submission:** `submit_evidence` route saves `Evidence` -> Updates `ActionPlan` item status -> `edit_evidence` allows modification.
     *   **CAPA Closure:** `close_capa` route updates `CapaIssue` status -> Calls `store_knowledge_on_capa_close` (`ai_learning.py`) to save the final consolidated knowledge.

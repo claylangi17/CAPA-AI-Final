@@ -5,3 +5,4 @@ google-generativeai
 WeasyPrint # Switched back from fpdf2
 python-dotenv # To manage API keys securely
 PyMySQL # Explicitly add the driver used in config
+sentence-transformers # For new embedding model
