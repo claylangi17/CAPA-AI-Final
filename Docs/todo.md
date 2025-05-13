@@ -25,10 +25,10 @@
 [x] Ganti kata status di report pdf jadi "Closed" and "Open" 
 [x] Issue jika status masih gemba pending itu harusnya dia bisa pergi ke page untuk input gembanya terlebih dahulu 
 [x] perbaiki loading screen pada halaman action plan (ketika submit)
-[ ] Perbaiki UI loading screen
+[x] Perbaiki UI loading screen
 [x] Ketika kirim bukti, jangan pergi ke page paling atas, tapi dia stay di bagian Pengajuan Bukti
 [x] Fix sematic search di action plan 
-[ ] Ganti API key tiap project (CAPA and GEMBA)
+[x] Ganti API key tiap project (CAPA and GEMBA)
 [x] Ganti semantic search pakai yang free
 [x] Animasi loading pada saat upload file 
 

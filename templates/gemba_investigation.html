@@ -4,41 +4,78 @@
 
 {% block content %}
 <style>
-  /* CSS untuk AI Loading Animation */
+  /* CSS untuk AI Loading Animation dengan Sparkle Effect */
   .ai-loading-container {
     max-width: 600px;
     margin: 0 auto;
     text-align: center;
     padding: 1.5rem;
   }
-
-  .ai-brain {
+  
+  .sparkle-loader-container {
     position: relative;
-    width: 120px;
-    height: 120px;
+    width: 200px;
+    height: 150px;
     margin: 0 auto 1.5rem;
   }
-
-  .ai-pulse {
+  
+  .sparkle-svg {
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    border-radius: 50%;
-    background: rgba(52, 152, 219, 0.1);
-    animation: pulse 2s infinite ease-in-out;
+    opacity: 0;
+    animation: sparkle-animation 1.8s infinite ease-in-out;
   }
-
-  .ai-brain-path {
-    fill: none;
-    stroke: #3498db;
-    stroke-width: 1.5;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    transition: stroke 0.5s;
+  
+  /* Definisi bintang-bintang */
+  .sparkle-1 {
+    /* Bintang kecil di kiri atas */
+    width: 25px;
+    height: 25px;
+    top: 10px;
+    left: 20px;
+    animation-delay: 0s;
   }
-
+  
+  .sparkle-2 {
+    /* Bintang sedang di kiri bawah */
+    width: 50px;
+    height: 50px;
+    top: 60px;
+    left: 30px;
+    animation-delay: 0.3s;
+  }
+  
+  .sparkle-3 {
+    /* Bintang besar di kanan tengah */
+    width: 80px;
+    height: 80px;
+    top: 30px;
+    left: 90px;
+    animation-delay: 0.6s;
+  }
+  
+  /* Keyframes untuk animasi sparkle */
+  @keyframes sparkle-animation {
+    0% {
+      opacity: 0;
+      transform: scale(0.5) rotate(0deg);
+    }
+    
+    30% {
+      opacity: 1;
+      transform: scale(1.1) rotate(15deg);
+    }
+    
+    70% {
+      opacity: 1;
+      transform: scale(1) rotate(-10deg);
+    }
+    
+    100% {
+      opacity: 0;
+      transform: scale(0.5) rotate(0deg);
+    }
+  }
+  
   .ai-text-animation:after {
     content: '...';
     display: inline-block;
@@ -46,7 +83,7 @@
     animation: ellipsis 1.5s infinite;
     text-align: left;
   }
-
+  
   .ai-progress-bar {
     height: 6px;
     background-color: #ecf0f1;
@@ -54,7 +91,7 @@
     overflow: hidden;
     margin: 1.5rem 0;
   }
-
+  
   .ai-progress-fill {
     height: 100%;
     width: 0%;
@@ -62,43 +99,26 @@
     border-radius: 10px;
     animation: progress 30s linear forwards;
   }
-
-  @keyframes pulse {
-    0% {
-      transform: scale(0.95);
-      opacity: 0.7;
-    }
-
-    50% {
-      transform: scale(1.05);
-      opacity: 0.3;
-    }
-
-    100% {
-      transform: scale(0.95);
-      opacity: 0.7;
-    }
-  }
-
+  
   @keyframes ellipsis {
     0% {
       content: '.';
     }
-
+    
     33% {
       content: '..';
     }
-
+    
     66% {
       content: '...';
     }
   }
-
+  
   @keyframes progress {
     0% {
       width: 0%;
     }
-
+    
     100% {
       width: 100%;
     }
@@ -114,13 +134,39 @@
   style="background-color: rgba(255,255,255,0.9); z-index: 9999;">
   <div class="position-absolute top-50 start-50 translate-middle text-center">
     <div class="ai-loading-container">
-      <div class="ai-brain">
-        <div class="ai-pulse"></div>
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-          <path class="ai-brain-path"
-            d="M9 4.5a1 1 0 0 0-1 1v4H6a2 2 0 0 0-2 2v.5A2.5 2.5 0 0 0 6.5 14h3a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v2a1.5 1.5 0 0 0 1.5 1.5h3a2.5 2.5 0 0 0 2.5-2.5V11.5a2 2 0 0 0-2-2h-2V5.5a1 1 0 0 0-1-1h-6Zm-3 7a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1.5a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5V10a1.5 1.5 0 0 1 1.5-1.5h1a.5.5 0 0 1 .5.5v1.5a1.5 1.5 0 0 1-1.5 1.5h-3a.5.5 0 0 0-.5.5 1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 6 12.5V11.5Z" />
-          <path class="ai-brain-path"
-            d="M12 1c1.5 0 2.793.636 3.5 1.414A5 5 0 0 1 19 7v1a1 1 0 1 1-2 0V7a3 3 0 0 0-3-3 2 2 0 0 0-2 2v8a2 2 0 1 1-4 0V7a3 3 0 0 0-3-3 2 2 0 0 0-2 2v1a1 1 0 1 1-2 0V7a4 4 0 0 1 4-4c1.054 0 2.011.423 2.716 1.11C8.434 3.416 9.733 3 11 3h1ZM5 15a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3 1 1 0 1 1 2 0 5 5 0 0 1-5 5H8a5 5 0 0 1-5-5 1 1 0 0 1 2 0Z" />
+      <div class="sparkle-loader-container" role="status" aria-label="Memuat...">
+        <!-- Bintang 1 (Kecil) -->
+        <svg class="sparkle-svg sparkle-1" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="sparkleGradient1" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#A020F0; stop-opacity:1" /> <!-- Ungu Pekat -->
+              <stop offset="100%" style="stop-color:#40E0D0; stop-opacity:1" /> <!-- Turquoise/Cyan Cerah -->
+            </linearGradient>
+          </defs>
+          <!-- Bentuk bintang 4 sisi (lebih sederhana) -->
+          <polygon points="50,0 61,39 100,50 61,61 50,100 39,61 0,50 39,39" fill="url(#sparkleGradient1)" />
+        </svg>
+        
+        <!-- Bintang 2 (Sedang) -->
+        <svg class="sparkle-svg sparkle-2" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="sparkleGradient2" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#8A2BE2; stop-opacity:1" /> <!-- BlueViolet -->
+              <stop offset="100%" style="stop-color:#00FFFF; stop-opacity:1" /> <!-- Cyan -->
+            </linearGradient>
+          </defs>
+          <polygon points="50,0 61,39 100,50 61,61 50,100 39,61 0,50 39,39" fill="url(#sparkleGradient2)" />
+        </svg>
+        
+        <!-- Bintang 3 (Besar) -->
+        <svg class="sparkle-svg sparkle-3" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="sparkleGradient3" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#7F00FF; stop-opacity:1" /> <!-- Violet -->
+              <stop offset="100%" style="stop-color:#20B2AA; stop-opacity:1" /> <!-- LightSeaGreen -->
+            </linearGradient>
+          </defs>
+          <polygon points="50,0 61,39 100,50 61,61 50,100 39,61 0,50 39,39" fill="url(#sparkleGradient3)" />
         </svg>
       </div>
       <h3 class="ai-text-animation">AI Sedang Memproses Data Gemba</h3>
