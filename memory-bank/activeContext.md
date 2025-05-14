@@ -70,6 +70,7 @@
         *   File upload animation on `gemba_investigation.html` (Foto Bukti).
     15. Test the submission process for forms with these new animations to ensure data is correctly submitted and animations behave as expected.
     16. Address any further UI/UX feedback or issues that arise from testing.
+    17. **Created `HOW_TO_RUN.md` to document application setup and execution.**
 
 *   **Active Decisions/Considerations:**
     *   Mengganti model embedding ke `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` untuk potensi peningkatan kualitas semantic search, terutama untuk teks multilingual.

@@ -31,6 +31,9 @@
 [x] Ganti API key tiap project (CAPA and GEMBA)
 [x] Ganti semantic search pakai yang free
 [x] Animasi loading pada saat upload file 
+[ ] Dashboard capa (repeted issue)
+[ ] show to user rekomendasi dari ainya 
+
 
 Flow:
 masukin case (Batch, Jumlah reject) -> required untuk gemba (Foto, deskripsi real issue) -> RCA -> Action plan -> evidence

@@ -51,6 +51,8 @@
     *   **Error Handling:** Continued focus on robust error handling.
     *   **Security, Formal Testing (Unit/Integration), Deployment Prep:** Standard ongoing concerns.
     *   **Database Migrations:** Consider adopting a formal migration tool like Alembic for future schema changes.
+    *   **Documentation:** Create `HOW_TO_RUN.md` (Completed).
+
 *   **Known Issues/Bugs (Resolved):**
     *   The similarity threshold of 0.3, chosen for the previous model, needs to be re-evaluated for `paraphrase-multilingual-MiniLM-L12-v2`.
     *   **Persistent Error (Resolved):** "The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()" error occurs in `ai_learning.py` during semantic search for action plans. A more robust check for NumPy array handling has been implemented.
@@ -91,7 +93,7 @@
     - Run the application to observe and verify the enhanced logging output from `cosine_similarity_rca`.
     - **Test the new three-stage semantic search logic for action plans.**
 - **User Feedback:** Gather user feedback on these enhancements.
-- **Documentation:** Update any necessary project documentation regarding these UI changes if applicable.
+- **Documentation:** Update any necessary project documentation regarding these UI changes if applicable. (`HOW_TO_RUN.md` created).
 - Address items from `todo.md` or other pending tasks.
 
 ## Known Issues / Bugs
