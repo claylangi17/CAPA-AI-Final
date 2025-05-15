@@ -1,0 +1,415 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard Analytic | SANSICO Asisten AI CAPA{% endblock %}
+{% block content %}
+<div class="container-fluid mt-5 pt-4">
+    <!-- Header -->
+    <div class="dashboard-header">
+        <div class="container-fluid">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-0"><i class="fas fa-chart-bar text-primary"></i> Dashboard Analytic CAPA</h2>
+                    <p class="mb-0 text-muted">Real-time analytics and insights</p>
+                </div>
+                <div class="dashboard-filter">
+                    <div class="d-flex gap-2">
+                        <div class="dropdown">
+                            <button class="btn btn-outline-primary dropdown-toggle" type="button" id="timeRangeDropdown"
+                                data-bs-toggle="dropdown">
+                                <i class="fas fa-calendar-alt me-2"></i>
+                                <span id="selectedRange">Last 12 Months</span>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="#" data-range="12m">Last 12 Months</a></li>
+                                <li><a class="dropdown-item" href="#" data-range="6m">Last 6 Months</a></li>
+                                <li><a class="dropdown-item" href="#" data-range="3m">Last 3 Months</a></li>
+                                <li><a class="dropdown-item" href="#" data-range="1m">Last Month</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add loading overlay -->
+    <div id="loadingOverlay" class="d-none">
+        <div class="loading-spinner">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Grid -->
+    <div class="row">
+        <!-- Status Distribution -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Status Distribution</h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <div class="loading-spinner d-none">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                        <canvas id="statusChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Customers -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Top Customers</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="customerChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Area Distribution -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">CAPA by Item</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="areaChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Machines -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Top Machines</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="topMachinesChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Large Charts -->
+    <div class="row">
+        <!-- Repeated Issues -->
+        <div class="col-xl-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Repeated Issues</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="repeatedIssuesChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Issue Trends -->
+        <div class="col-xl-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Issue Trends</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="issueTrendsChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script>
+        // Store chart instances
+        let charts = {};
+
+        // Time Range Selection
+        document.querySelectorAll('.dropdown-item[data-range]').forEach(item => {
+            item.addEventListener('click', function (e) {
+                e.preventDefault();
+                const range = this.getAttribute('data-range');
+                document.getElementById('selectedRange').textContent = this.textContent;
+                updateDashboard(range);
+            });
+        });
+
+        // Update Dashboard with selected time range
+        async function updateDashboard(range = '12m') {
+            try {
+                showLoading();
+                const response = await fetch(`/dashboard/data?range=${range}`);
+                const data = await response.json();
+                console.log('Received dashboard data:', data);
+                initializeCharts(data);
+                hideLoading();
+            } catch (error) {
+                console.error('Error updating dashboard:', error);
+                hideLoading();
+                alert('Error updating dashboard. Please try again.');
+            }
+        }
+
+
+
+        // Loading functions
+        function showLoading() {
+            document.getElementById('loadingOverlay').classList.remove('d-none');
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').classList.add('d-none');
+        }
+
+        // Initialize all charts
+        function initializeCharts(data) {
+            console.log('Initializing charts with data:', data);
+
+            // Helper function to safely get chart data
+            function getChartData(data, chartType) {
+                try {
+                    if (!data || !data[chartType]) {
+                        console.warn(`No data for ${chartType}`);
+                        return { labels: [], values: [] };
+                    }
+                    return {
+                        labels: Array.isArray(data[chartType].labels) ? data[chartType].labels : [],
+                        values: Array.isArray(data[chartType].values) ? data[chartType].values : []
+                    };
+                } catch (error) {
+                    console.error(`Error processing ${chartType} data:`, error);
+                    return { labels: [], values: [] };
+                }
+            }
+
+            // Status Distribution Chart
+            if (document.getElementById('statusChart')) {
+                try {
+                    // Destroy existing chart if it exists
+                    if (charts.statusChart) {
+                        charts.statusChart.destroy();
+                        delete charts.statusChart;
+                    }
+
+                    const statusData = getChartData(data, 'status_distribution');
+                    charts.statusChart = new Chart(document.getElementById('statusChart'), {
+                        type: 'doughnut',
+                        data: {
+                            labels: statusData.labels,
+                            datasets: [{
+                                data: statusData.values,
+                                backgroundColor: ['#1cc88a', '#4e73df', '#f6c23e', '#e74a3b'],
+                                hoverBackgroundColor: ['#158055', '#2e59d9', '#f5a623', '#d0392b']
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom'
+                                }
+                            }
+                        }
+                    });
+                } catch (error) {
+                    console.error('Error creating status chart:', error);
+                }
+            }
+
+            // Customer Chart (Pie Chart)
+            if (document.getElementById('customerChart')) {
+                try {
+                    // Destroy existing chart if it exists
+                    if (charts.customerChart) {
+                        charts.customerChart.destroy();
+                        delete charts.customerChart;
+                    }
+
+                    const customerData = getChartData(data, 'top_customers');
+                    charts.customerChart = new Chart(document.getElementById('customerChart'), {
+                        type: 'pie',
+                        data: {
+                            labels: customerData.labels,
+                            datasets: [{
+                                data: customerData.values,
+                                backgroundColor: ['#4e73df', '#1cc88a', '#f6c23e', '#e74a3b', '#858796'],
+                                hoverBackgroundColor: ['#2e59d9', '#158055', '#f5a623', '#d0392b', '#5a5c69']
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom'
+                                }
+                            }
+                        }
+                    });
+                } catch (error) {
+                    console.error('Error creating customer chart:', error);
+                }
+            }
+
+            // CAPA by Item Chart (Pie Chart)
+            if (document.getElementById('areaChart')) {
+                try {
+                    // Destroy existing chart if it exists
+                    if (charts.areaChart) {
+                        charts.areaChart.destroy();
+                        delete charts.areaChart;
+                    }
+
+                    const areaData = getChartData(data, 'area_distribution');
+                    charts.areaChart = new Chart(document.getElementById('areaChart'), {
+                        type: 'pie',
+                        data: {
+                            labels: areaData.labels,
+                            datasets: [{
+                                data: areaData.values,
+                                backgroundColor: ['#1cc88a', '#4e73df', '#f6c23e', '#e74a3b', '#858796'],
+                                hoverBackgroundColor: ['#158055', '#2e59d9', '#f5a623', '#d0392b', '#5a5c69']
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom'
+                                }
+                            }
+                        }
+                    });
+                } catch (error) {
+                    console.error('Error creating CAPA by Item chart:', error);
+                }
+            }
+
+            // Top Machines Chart (Pie Chart)
+            if (document.getElementById('topMachinesChart')) {
+                try {
+                    // Destroy existing chart if it exists
+                    if (charts.topMachinesChart) {
+                        charts.topMachinesChart.destroy();
+                        delete charts.topMachinesChart;
+                    }
+
+                    const machineData = getChartData(data, 'top_machines');
+                    charts.topMachinesChart = new Chart(document.getElementById('topMachinesChart'), {
+                        type: 'pie',
+                        data: {
+                            labels: machineData.labels,
+                            datasets: [{
+                                data: machineData.values,
+                                backgroundColor: ['#f6c23e', '#1cc88a', '#4e73df', '#e74a3b', '#858796'],
+                                hoverBackgroundColor: ['#f5a623', '#158055', '#2e59d9', '#d0392b', '#5a5c69']
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom'
+                                }
+                            }
+                        }
+                    });
+                } catch (error) {
+                    console.error('Error creating top machines chart:', error);
+                }
+            }
+
+            // Repeated Issues Chart
+            if (document.getElementById('repeatedIssuesChart')) {
+                try {
+                    // Destroy existing chart if it exists
+                    if (charts.repeatedIssuesChart) {
+                        charts.repeatedIssuesChart.destroy();
+                        delete charts.repeatedIssuesChart;
+                    }
+
+                    const repeatedData = getChartData(data, 'repeated_issues');
+                    charts.repeatedIssuesChart = new Chart(document.getElementById('repeatedIssuesChart'), {
+                        type: 'bar',
+                        data: {
+                            labels: repeatedData.labels,
+                            datasets: [{
+                                label: 'Number of Occurrences',
+                                data: repeatedData.values,
+                                backgroundColor: 'rgba(231, 74, 59, 0.2)',
+                                borderColor: '#e74a3b',
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+                } catch (error) {
+                    console.error('Error creating repeated issues chart:', error);
+                }
+            }
+
+            // Issue Trends Chart
+            if (document.getElementById('issueTrendsChart')) {
+                try {
+                    // Destroy existing chart if it exists
+                    if (charts.issueTrendsChart) {
+                        charts.issueTrendsChart.destroy();
+                        delete charts.issueTrendsChart;
+                    }
+
+                    const trendsData = getChartData(data, 'issue_trends');
+                    charts.issueTrendsChart = new Chart(document.getElementById('issueTrendsChart'), {
+                        type: 'line',
+                        data: {
+                            labels: trendsData.labels,
+                            datasets: [{
+                                label: 'Number of Issues',
+                                data: trendsData.values,
+                                borderColor: '#4e73df',
+                                tension: 0.1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+                } catch (error) {
+                    console.error('Error creating issue trends chart:', error);
+                }
+            }
+        }
+
+        // Initial load
+        document.addEventListener('DOMContentLoaded', function () {
+            updateDashboard('12m');
+        });
+    </script>
+    {% endblock %}

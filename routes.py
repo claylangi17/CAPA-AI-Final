@@ -1,6 +1,7 @@
+import logging
 from flask import render_template, request, redirect, url_for, flash, jsonify, send_from_directory, make_response
 from werkzeug.utils import secure_filename
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 import json
 from sqlalchemy import distinct
@@ -13,6 +14,127 @@ from config import UPLOAD_FOLDER
 
 
 def register_routes(app):
+    @app.route('/dashboard')
+    def dashboard():
+        return render_template('dashboard.html')
+
+
+
+    @app.route('/dashboard/data')
+    def dashboard_data():
+        try:
+            # Get time range parameter
+            time_range = request.args.get('range', '12m')
+            print(f"Fetching data for time range: {time_range}")
+            
+            # Calculate date range based on parameter
+            from_date = None
+            if time_range == '12m':
+                from_date = datetime.now() - timedelta(days=365)
+            elif time_range == '6m':
+                from_date = datetime.now() - timedelta(days=180)
+            elif time_range == '3m':
+                from_date = datetime.now() - timedelta(days=90)
+            elif time_range == '1m':
+                from_date = datetime.now() - timedelta(days=30)
+            
+            # Base query with date filter if applicable
+            base_query = db.session.query(CapaIssue)
+            if from_date:
+                base_query = base_query.filter(CapaIssue.issue_date >= from_date)
+            
+            # --- Status Distribution ---
+            status_distribution = (
+                db.session.query(CapaIssue.status, db.func.count(CapaIssue.status))
+                .filter(CapaIssue.issue_date >= from_date)
+                .group_by(CapaIssue.status)
+                .order_by(db.func.count(CapaIssue.status).desc())
+                .all()
+            )
+            status_labels = [row[0] for row in status_distribution]
+            status_values = [row[1] for row in status_distribution]
+            print(f"Status Distribution: {status_distribution}")
+
+            # --- Top Customers ---
+            top_customers = (
+                db.session.query(CapaIssue.customer_name, db.func.count(CapaIssue.customer_name))
+                .filter(CapaIssue.issue_date >= from_date)
+                .group_by(CapaIssue.customer_name)
+                .order_by(db.func.count(CapaIssue.customer_name).desc())
+                .limit(5)
+                .all()
+            )
+            customer_labels = [row[0] for row in top_customers]
+            customer_values = [row[1] for row in top_customers]
+            print(f"Top Customers: {top_customers}")
+
+            # --- Area Distribution ---
+            area_distribution = (
+                db.session.query(CapaIssue.item_involved, db.func.count(CapaIssue.item_involved))
+                .filter(CapaIssue.issue_date >= from_date)
+                .group_by(CapaIssue.item_involved)
+                .order_by(db.func.count(CapaIssue.item_involved).desc())
+                .limit(5)
+                .all()
+            )
+            area_labels = [row[0] for row in area_distribution]
+            area_values = [row[1] for row in area_distribution]
+            print(f"Area Distribution: {area_distribution}")
+
+            # --- Repeated Issues (by description/count) ---
+            repeated_issues = (
+                db.session.query(CapaIssue.issue_description, db.func.count(CapaIssue.issue_description))
+                .filter(CapaIssue.issue_date >= from_date)
+                .group_by(CapaIssue.issue_description)
+                .having(db.func.count(CapaIssue.issue_description) > 1)
+                .order_by(db.func.count(CapaIssue.issue_description).desc())
+                .limit(5)
+                .all()
+            )
+            repeated_issues_labels = [row[0] for row in repeated_issues]
+            repeated_issues_values = [row[1] for row in repeated_issues]
+            print(f"Repeated Issues: {repeated_issues}")
+
+            # --- Top Machines with Most Issues ---
+            top_machines = (
+                db.session.query(CapaIssue.machine_name, db.func.count(CapaIssue.machine_name))
+                .filter(CapaIssue.issue_date >= from_date)
+                .group_by(CapaIssue.machine_name)
+                .order_by(db.func.count(CapaIssue.machine_name).desc())
+                .limit(5)
+                .all()
+            )
+            top_machines_labels = [row[0] for row in top_machines]
+            top_machines_values = [row[1] for row in top_machines]
+            print(f"Top Machines: {top_machines}")
+
+            # --- Issue Trends Over Time (monthly) ---
+            issue_trends = (
+                db.session.query(db.func.date_format(CapaIssue.issue_date, '%Y-%m'), db.func.count(CapaIssue.capa_id))
+                .filter(CapaIssue.issue_date >= from_date)
+                .group_by(db.func.date_format(CapaIssue.issue_date, '%Y-%m'))
+                .order_by(db.func.date_format(CapaIssue.issue_date, '%Y-%m'))
+                .all()
+            )
+            issue_trends_labels = [row[0] for row in issue_trends]
+            issue_trends_values = [row[1] for row in issue_trends]
+            print(f"Issue Trends: {issue_trends}")
+
+            return jsonify({
+                'status_distribution': {'labels': status_labels, 'values': status_values},
+                'top_customers': {'labels': customer_labels, 'values': customer_values},
+                'area_distribution': {'labels': area_labels, 'values': area_values},
+                'repeated_issues': {'labels': repeated_issues_labels, 'values': repeated_issues_values},
+                'top_machines': {'labels': top_machines_labels, 'values': top_machines_values},
+                'issue_trends': {'labels': issue_trends_labels, 'values': issue_trends_values}
+            })
+
+        except Exception as e:
+            print(f"Error in dashboard_data: {str(e)}")
+            return jsonify({
+                'error': str(e)
+            }), 500
+
     @app.route('/')
     def index():
         issues = CapaIssue.query.order_by(
