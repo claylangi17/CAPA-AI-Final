@@ -18,15 +18,13 @@ def register_routes(app):
     def dashboard():
         return render_template('dashboard.html')
 
-
-
     @app.route('/dashboard/data')
     def dashboard_data():
         try:
             # Get time range parameter
             time_range = request.args.get('range', '12m')
             print(f"Fetching data for time range: {time_range}")
-            
+
             # Calculate date range based on parameter
             from_date = None
             if time_range == '12m':
@@ -37,15 +35,17 @@ def register_routes(app):
                 from_date = datetime.now() - timedelta(days=90)
             elif time_range == '1m':
                 from_date = datetime.now() - timedelta(days=30)
-            
+
             # Base query with date filter if applicable
             base_query = db.session.query(CapaIssue)
             if from_date:
-                base_query = base_query.filter(CapaIssue.issue_date >= from_date)
-            
+                base_query = base_query.filter(
+                    CapaIssue.issue_date >= from_date)
+
             # --- Status Distribution ---
             status_distribution = (
-                db.session.query(CapaIssue.status, db.func.count(CapaIssue.status))
+                db.session.query(CapaIssue.status,
+                                 db.func.count(CapaIssue.status))
                 .filter(CapaIssue.issue_date >= from_date)
                 .group_by(CapaIssue.status)
                 .order_by(db.func.count(CapaIssue.status).desc())
@@ -57,7 +57,8 @@ def register_routes(app):
 
             # --- Top Customers ---
             top_customers = (
-                db.session.query(CapaIssue.customer_name, db.func.count(CapaIssue.customer_name))
+                db.session.query(CapaIssue.customer_name,
+                                 db.func.count(CapaIssue.customer_name))
                 .filter(CapaIssue.issue_date >= from_date)
                 .group_by(CapaIssue.customer_name)
                 .order_by(db.func.count(CapaIssue.customer_name).desc())
@@ -70,7 +71,8 @@ def register_routes(app):
 
             # --- Area Distribution ---
             area_distribution = (
-                db.session.query(CapaIssue.item_involved, db.func.count(CapaIssue.item_involved))
+                db.session.query(CapaIssue.item_involved,
+                                 db.func.count(CapaIssue.item_involved))
                 .filter(CapaIssue.issue_date >= from_date)
                 .group_by(CapaIssue.item_involved)
                 .order_by(db.func.count(CapaIssue.item_involved).desc())
@@ -83,7 +85,8 @@ def register_routes(app):
 
             # --- Repeated Issues (by description/count) ---
             repeated_issues = (
-                db.session.query(CapaIssue.issue_description, db.func.count(CapaIssue.issue_description))
+                db.session.query(CapaIssue.issue_description,
+                                 db.func.count(CapaIssue.issue_description))
                 .filter(CapaIssue.issue_date >= from_date)
                 .group_by(CapaIssue.issue_description)
                 .having(db.func.count(CapaIssue.issue_description) > 1)
@@ -97,7 +100,8 @@ def register_routes(app):
 
             # --- Top Machines with Most Issues ---
             top_machines = (
-                db.session.query(CapaIssue.machine_name, db.func.count(CapaIssue.machine_name))
+                db.session.query(CapaIssue.machine_name,
+                                 db.func.count(CapaIssue.machine_name))
                 .filter(CapaIssue.issue_date >= from_date)
                 .group_by(CapaIssue.machine_name)
                 .order_by(db.func.count(CapaIssue.machine_name).desc())
@@ -110,7 +114,8 @@ def register_routes(app):
 
             # --- Issue Trends Over Time (monthly) ---
             issue_trends = (
-                db.session.query(db.func.date_format(CapaIssue.issue_date, '%Y-%m'), db.func.count(CapaIssue.capa_id))
+                db.session.query(db.func.date_format(
+                    CapaIssue.issue_date, '%Y-%m'), db.func.count(CapaIssue.capa_id))
                 .filter(CapaIssue.issue_date >= from_date)
                 .group_by(db.func.date_format(CapaIssue.issue_date, '%Y-%m'))
                 .order_by(db.func.date_format(CapaIssue.issue_date, '%Y-%m'))
@@ -785,22 +790,82 @@ def register_routes(app):
         ).get_or_404(capa_id)
 
         # Render the HTML template with the issue data
-        # Pass datetime to template context for footer generation
         html_out = render_template(
             'report_template.html', issue=issue, datetime=datetime)
 
         try:
-            # Use WeasyPrint to generate PDF from HTML string
-            from weasyprint import HTML  # Import WeasyPrint
-
-            # Pass base_url for relative paths like images
-            pdf_bytes = HTML(
-                string=html_out, base_url=request.base_url).write_pdf()
-
-            # Create a Flask response object with the PDF data
+            # Import required modules
+            import pdfkit
+            import os
+            from pathlib import Path
+            
+            # Common installation paths for wkhtmltopdf
+            possible_paths = [
+                'C:/Program Files/wkhtmltopdf/bin/wkhtmltopdf.exe',
+                'C:/Program Files (x86)/wkhtmltopdf/bin/wkhtmltopdf.exe',
+                str(Path.home() / 'wkhtmltopdf' / 'bin' / 'wkhtmltopdf.exe'),
+                'C:/wkhtmltopdf/bin/wkhtmltopdf.exe'
+            ]
+            
+            # Try to find wkhtmltopdf in common locations
+            wkhtmltopdf_path = None
+            for path in possible_paths:
+                if os.path.exists(path):
+                    wkhtmltopdf_path = path
+                    break
+            
+            if not wkhtmltopdf_path:
+                raise Exception("wkhtmltopdf not found. Please install it from https://wkhtmltopdf.org/")
+            
+            # Configure pdfkit with the found path
+            config = pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path)
+            
+            # Options for the PDF
+            options = {
+                'page-size': 'A4',
+                'margin-top': '1.5cm',
+                'margin-right': '1.5cm',
+                'margin-bottom': '1.5cm',
+                'margin-left': '1.5cm',
+                'encoding': 'UTF-8',
+                'enable-local-file-access': '',  # Allow local file access for images
+                'no-outline': None,
+                'print-media-type': '',  # Use print media type for better rendering
+                'disable-smart-shrinking': '',  # Prevent text size adjustment
+                'dpi': 300,  # Higher DPI for better quality
+                'zoom': 1.0,  # No zoom
+                'user-style-sheet': str(Path('static/css/custom.css').absolute())  # Include custom CSS if needed
+            }
+            
+            # Add additional CSS for PDF
+            css = '''
+            @page {
+                margin: 1.5cm;
+                size: A4;
+            }
+            body {
+                font-family: 'Poppins', Arial, sans-serif;
+                margin: 0;
+                padding: 0;
+                font-size: 10pt;
+                line-height: 1.6;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            '''
+            
+            # Generate PDF using pdfkit with additional CSS
+            pdf_bytes = pdfkit.from_string(
+                html_out,
+                False,
+                configuration=config,
+                options=options,
+                css=os.path.join('static', 'css', 'custom.css') if os.path.exists(os.path.join('static', 'css', 'custom.css')) else None
+            )
+            
+            # Create and return the response
             response = make_response(pdf_bytes)
             response.headers['Content-Type'] = 'application/pdf'
-            # Or 'attachment;' to force download
             response.headers[
                 'Content-Disposition'] = f'inline; filename=capa_report_{capa_id}.pdf'
             return response

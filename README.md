@@ -20,6 +20,11 @@ A comprehensive Corrective and Preventive Action (CAPA) management system powere
 - Python 3.8+
 - MySQL Server
 - Git (optional)
+- wkhtmltopdf (for PDF generation)
+  - **Windows**: Download and install from [wkhtmltopdf downloads](https://wkhtmltopdf.org/downloads.html), then add to system PATH
+  - **macOS**: `brew install --cask wkhtmltopdf`
+  - **Ubuntu/Debian**: `sudo apt-get update && sudo apt-get install -y wkhtmltopdf`
+  - **Other Linux**: Check your distribution's package manager or build from source
 
 ### Installation
 

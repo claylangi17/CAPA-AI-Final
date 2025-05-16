@@ -171,32 +171,59 @@
 
         dl {
             /* For Detail Masalah */
-            margin-bottom: 1em;
-            padding-left: 0;
-            /* Remove default padding */
+            margin: 0.8em 0;
+            padding: 0;
             display: grid;
-            grid-template-columns: 150px auto;
-            /* Label and Value columns */
-            gap: 8px 15px;
-            /* Row and Column gap */
+            grid-template-columns: 160px 1fr;
+            gap: 0;
+            background-color: #FFFFFF;
+            border-radius: 6px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            border: 1px solid #E8F0FE;
         }
 
         dt {
             font-weight: 600;
-            color: var(--heading-color);
-            grid-column: 1;
-            padding-right: 10px;
-            text-align: right;
+            color: var(--primary-color);
+            padding: 8px 12px;
+            background-color: #F8FAFF;
             font-size: 9.5pt;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            border-right: 1px solid #E8F0FE;
+            line-height: 1.4;
         }
 
         dd {
-            margin-left: 0;
-            /* Override default */
-            grid-column: 2;
+            margin: 0;
+            padding: 8px 12px;
+            font-size: 10pt;
+            line-height: 1.5;
+            color: #4A4A4A;
+            background: #FFFFFF;
+            border-left: 2px solid #E8F0FE;
+        }
+
+        /* Add subtle hover effect */
+        dl:hover {
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+        }
+
+        /* Add spacing between items */
+        dl + dl {
+            margin-top: 12px;
+        }
+
+        /* Style for empty values */
+        dd:empty::before {
+            content: "-";
+            color: #BBB;
+            font-style: italic;
             font-size: 9.5pt;
-            border-left: 2px solid var(--secondary-color);
-            padding-left: 10px;
         }
 
         .photo {
