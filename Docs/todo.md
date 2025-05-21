@@ -33,6 +33,16 @@
 [x] Animasi loading pada saat upload file 
 [x] Dashboard capa (repeted issue)
 [ ] show to user rekomendasi dari ainya 
+[ ] Foto di bagian initial issue bisa lebih dari satu 
+[ ]update waktu di pdf report
+[ ]summary sebelum pengajuan bukti (need to be consern again) 
+[ ]auto save draft 
+[ ]fitur role:
+    - Super role: Dsiplay all PT
+    - User: Display only their own PT
+[ ] filter by weekending
+[ ] AI baca by process
+[ ] Masuk ai knowledge based ketika status sudah evidence pending, gaperlu tunggu close (need to be consern again) 
 
 
 Flow:

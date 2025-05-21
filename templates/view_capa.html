@@ -279,11 +279,31 @@
     </div>
     <div class="col-md-4">
         <h4>Foto Awal</h4>
-        {% if issue.initial_photo_path %}
-        <img src="{{ url_for('uploaded_file', filename=issue.initial_photo_path) }}" class="img-fluid"
-            alt="Foto Awal Masalah">
+        {% if issue.initial_photos %}
+          {% set num_photos = issue.initial_photos | length %}
+          <div class="row gx-2 gy-2 mb-3 {% if num_photos == 1 or num_photos == 2 %}justify-content-center{% endif %}">
+            {% for photo_filename in issue.initial_photos %}
+            {# --- Determine column class based on number of photos --- #}
+            {% set col_classes_list = [] %}
+            {% if num_photos == 1 %}
+              {% set col_classes_list = ['col-md-10', 'col-lg-8', 'mx-auto'] %}
+            {% elif num_photos == 2 %}
+              {% set col_classes_list = ['col-md-6', 'col-sm-6', 'col-12'] %}
+            {% elif num_photos == 3 %}
+              {% set col_classes_list = ['col-md-4', 'col-sm-6', 'col-12'] %}
+            {% else %}{# 4 or more photos #}
+              {% set col_classes_list = ['col-lg-3', 'col-md-4', 'col-sm-6', 'col-12'] %}
+            {% endif %}
+            <div class="{{ col_classes_list | join(' ') }}">
+              <a href="{{ url_for('uploaded_file', filename=photo_filename) }}" target="_blank" data-bs-toggle="tooltip" title="Klik untuk melihat ukuran penuh" class="d-block text-center">
+                <img src="{{ url_for('uploaded_file', filename=photo_filename) }}" class="img-fluid rounded shadow-sm initial-issue-photo"
+                     alt="Initial Issue Photo {{ loop.index }}" style="max-height: 300px; width: auto; max-width: 100%; object-fit: contain; cursor: pointer; display: block; margin-left: auto; margin-right: auto;">
+              </a>
+            </div>
+            {% endfor %}
+          </div>
         {% else %}
-        <p>Tidak ada foto awal yang diunggah.</p>
+          <p><em>Tidak ada foto awal yang diunggah.</em></p>
         {% endif %}
     </div>
 </div>

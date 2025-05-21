@@ -1,5 +1,5 @@
 import logging
-from flask import render_template, request, redirect, url_for, flash, jsonify, send_from_directory, make_response
+from flask import render_template, request, redirect, url_for, flash, jsonify, send_from_directory, make_response, current_app
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
 import os
@@ -244,11 +244,21 @@ def register_routes(app):
             issue_description = request.form.get('issue_description')
             machine_name = request.form.get('machine_name')
             batch_number = request.form.get('batch_number')
-            initial_photo = request.files.get('initial_photo')
+            initial_photos_files = request.files.getlist('initial_photos[]')
+            saved_photo_filenames = []  # For temporary storage before capa_id is known
+            final_photo_filenames = []   # For filenames with capa_id prefix
+            upload_dir = os.path.join(app.config['UPLOAD_FOLDER'])
+            # Ensure upload directory exists
+            os.makedirs(upload_dir, exist_ok=True)
 
-            # Basic validation
+            # Basic validation for required text fields
             if not all([customer_name, item_involved, issue_date_str, issue_description]):
                 flash('Please fill in all required fields.', 'danger')
+                return render_template('new_capa.html')
+
+            # Photo validation (at least one photo if input is required by HTML)
+            if not initial_photos_files or not any(f for f in initial_photos_files if f.filename):
+                flash('Please upload at least one initial issue photo.', 'danger')
                 return render_template('new_capa.html')
 
             try:
@@ -258,20 +268,44 @@ def register_routes(app):
                 flash('Invalid date format. Please use YYYY-MM-DD.', 'danger')
                 return render_template('new_capa.html')
 
-            photo_path = None
-            if initial_photo and allowed_file(initial_photo.filename):
-                filename = secure_filename(initial_photo.filename)
-                # Ensure uploads directory exists
-                upload_dir = os.path.join(app.config['UPLOAD_FOLDER'])
-                os.makedirs(upload_dir, exist_ok=True)
-                # Create a unique subfolder for each CAPA ID later? For now, just save.
-                # Consider adding timestamp or unique ID to filename to prevent overwrites
-                unique_filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{filename}"
-                photo_path = os.path.join(upload_dir, unique_filename)
-                initial_photo.save(photo_path)
-                photo_path = unique_filename  # Store relative path in DB
+            # Process and save uploaded photos temporarily
+            for photo_file in initial_photos_files:
+                if photo_file and allowed_file(photo_file.filename):
+                    filename = secure_filename(photo_file.filename)
+                    timestamp_prefix = datetime.now().strftime(
+                        '%Y%m%d%H%M%S%f')  # Microseconds for better uniqueness
+                    unique_filename_temp = f"{timestamp_prefix}_{filename}"
+                    temp_photo_path = os.path.join(
+                        upload_dir, unique_filename_temp)
+                    try:
+                        photo_file.save(temp_photo_path)
+                        saved_photo_filenames.append(unique_filename_temp)
+                    except Exception as e_save:
+                        flash(
+                            f'Error saving photo {filename}: {str(e_save)}', 'danger')
+                        for sf_name in saved_photo_filenames:  # Clean up already saved photos in this batch
+                            sf_path = os.path.join(upload_dir, sf_name)
+                            if os.path.exists(sf_path):
+                                try:
+                                    os.remove(sf_path)
+                                except OSError as e_remove_cleanup:
+                                    app.logger.error(
+                                        f"Error removing photo {sf_path} during save error cleanup: {e_remove_cleanup}")
+                        return render_template('new_capa.html')
+                elif photo_file and photo_file.filename:  # If file exists but not allowed
+                    flash(
+                        f'File type not allowed for {secure_filename(photo_file.filename)}.', 'danger')
+                    for sf_name in saved_photo_filenames:  # Clean up already saved photos
+                        sf_path = os.path.join(upload_dir, sf_name)
+                        if os.path.exists(sf_path):
+                            try:
+                                os.remove(sf_path)
+                            except OSError as e_remove_cleanup:
+                                app.logger.error(
+                                    f"Error removing photo {sf_path} during type error cleanup: {e_remove_cleanup}")
+                    return render_template('new_capa.html')
 
-            # Create new CAPA Issue
+            # Create new CAPA Issue (without photo paths initially)
             new_issue = CapaIssue(
                 customer_name=customer_name,
                 item_involved=item_involved,
@@ -279,31 +313,51 @@ def register_routes(app):
                 issue_description=issue_description,
                 machine_name=machine_name,
                 batch_number=batch_number,
-                initial_photo_path=photo_path,
-                status='Open'  # Initial status
+                status='Open'
             )
 
             try:
                 db.session.add(new_issue)
-                # Commit here to get the new_issue.capa_id
-                db.session.commit()
+                db.session.commit()  # First commit to get new_issue.capa_id
 
-                # Update status to Gemba Pending
+                # Now, rename photos with capa_id prefix and finalize list
+                for temp_filename in saved_photo_filenames:
+                    final_filename = f"initial_{new_issue.capa_id}_{temp_filename}"
+                    original_path = os.path.join(upload_dir, temp_filename)
+                    final_path = os.path.join(upload_dir, final_filename)
+                    try:
+                        os.rename(original_path, final_path)
+                        final_photo_filenames.append(final_filename)
+                    except OSError as e_rename:
+                        app.logger.error(
+                            f"Error renaming photo {temp_filename} to {final_filename}: {e_rename}. Keeping temp name.")
+                        # Keep temp name, will lack capa_id prefix but photo isn't lost
+                        final_photo_filenames.append(temp_filename)
+
+                if final_photo_filenames:
+                    new_issue.initial_photos = final_photo_filenames  # Uses property setter
+
                 new_issue.status = 'Gemba Pending'
-                db.session.commit()
+                db.session.commit()  # Second commit to save photo paths and status update
 
                 flash(
-                    f'New CAPA issue (ID: {new_issue.capa_id}) created successfully! Please complete the Gemba Investigation.', 'success')
-
-                # Redirect to Gemba Investigation page
+                    f'New CAPA issue (ID: {new_issue.capa_id}) created successfully with {len(final_photo_filenames)} photo(s)! Please complete the Gemba Investigation.', 'success')
                 return redirect(url_for('gemba_investigation', capa_id=new_issue.capa_id))
+
             except Exception as e:
-                db.session.rollback()  # Rollback issue creation if anything failed
+                db.session.rollback()
                 flash(f'Error creating CAPA issue: {str(e)}', 'danger')
-                # Clean up saved photo if DB commit failed
-                if photo_path and os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], photo_path)):
-                    os.remove(os.path.join(
-                        app.config['UPLOAD_FOLDER'], photo_path))
+                # Clean up all potentially saved photos (temp or final names)
+                cleanup_candidates = set(
+                    saved_photo_filenames + final_photo_filenames)
+                for p_filename in cleanup_candidates:
+                    full_p_path = os.path.join(upload_dir, p_filename)
+                    if os.path.exists(full_p_path):
+                        try:
+                            os.remove(full_p_path)
+                        except OSError as e_remove:
+                            app.logger.error(
+                                f"Error removing photo {full_p_path} during rollback: {e_remove}")
 
         # GET request: just display the form
         return render_template('new_capa.html')
@@ -790,36 +844,38 @@ def register_routes(app):
         ).get_or_404(capa_id)
 
         # Render the HTML template with the issue data
+        initial_photo_abs_paths = []
+        if issue.initial_photos:
+            for photo_filename in issue.initial_photos:
+                abs_path = os.path.join(
+                    current_app.root_path, current_app.config['UPLOAD_FOLDER'], photo_filename)
+                initial_photo_abs_paths.append(abs_path)
+
+        gemba_findings = None
+        gemba_photo_abs_paths = []
+        if issue.gemba_investigation:
+            gemba_findings = issue.gemba_investigation.findings
+            if issue.gemba_investigation.gemba_photos:
+                for photo_filename in issue.gemba_investigation.gemba_photos:
+                    abs_path = os.path.join(
+                        current_app.root_path, current_app.config['UPLOAD_FOLDER'], photo_filename)
+                    gemba_photo_abs_paths.append(abs_path)
+
         html_out = render_template(
-            'report_template.html', issue=issue, datetime=datetime)
+            'report_template.html',
+            issue=issue,
+            datetime=datetime,
+            initial_photo_abs_paths=initial_photo_abs_paths,
+            gemba_findings=gemba_findings,
+            gemba_photo_abs_paths=gemba_photo_abs_paths
+        )
 
         try:
             # Import required modules
             import pdfkit
-            import os
             from pathlib import Path
-            
-            # Common installation paths for wkhtmltopdf
-            possible_paths = [
-                'C:/Program Files/wkhtmltopdf/bin/wkhtmltopdf.exe',
-                'C:/Program Files (x86)/wkhtmltopdf/bin/wkhtmltopdf.exe',
-                str(Path.home() / 'wkhtmltopdf' / 'bin' / 'wkhtmltopdf.exe'),
-                'C:/wkhtmltopdf/bin/wkhtmltopdf.exe'
-            ]
-            
-            # Try to find wkhtmltopdf in common locations
-            wkhtmltopdf_path = None
-            for path in possible_paths:
-                if os.path.exists(path):
-                    wkhtmltopdf_path = path
-                    break
-            
-            if not wkhtmltopdf_path:
-                raise Exception("wkhtmltopdf not found. Please install it from https://wkhtmltopdf.org/")
-            
-            # Configure pdfkit with the found path
-            config = pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path)
-            
+            # wkhtmltopdf is expected to be in system PATH. pdfkit will find it.
+
             # Options for the PDF
             options = {
                 'page-size': 'A4',
@@ -834,9 +890,10 @@ def register_routes(app):
                 'disable-smart-shrinking': '',  # Prevent text size adjustment
                 'dpi': 300,  # Higher DPI for better quality
                 'zoom': 1.0,  # No zoom
-                'user-style-sheet': str(Path('static/css/custom.css').absolute())  # Include custom CSS if needed
+                # Include custom CSS if needed
+                'user-style-sheet': str(Path('static/css/custom.css').absolute())
             }
-            
+
             # Add additional CSS for PDF
             css = '''
             @page {
@@ -853,16 +910,16 @@ def register_routes(app):
                 print-color-adjust: exact !important;
             }
             '''
-            
+
             # Generate PDF using pdfkit with additional CSS
             pdf_bytes = pdfkit.from_string(
                 html_out,
                 False,
-                configuration=config,
                 options=options,
-                css=os.path.join('static', 'css', 'custom.css') if os.path.exists(os.path.join('static', 'css', 'custom.css')) else None
+                css=os.path.join('static', 'css', 'custom.css') if os.path.exists(
+                    os.path.join('static', 'css', 'custom.css')) else None
             )
-            
+
             # Create and return the response
             response = make_response(pdf_bytes)
             response.headers['Content-Type'] = 'application/pdf'

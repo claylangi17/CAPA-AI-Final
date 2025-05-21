@@ -185,6 +185,21 @@ body {
     animation: fadeIn 0.5s ease;
 }
 
+/* Choices.js visibility fix */
+.choices__inner {
+    overflow: visible; /* Allow input to be visible even if it extends */
+}
+
+.choices__input--cloned {
+    z-index: 5; /* Ensure input is above other elements within choices */
+    position: relative; /* Needed for z-index to take effect */
+}
+
+/* Ensure the dropdown list doesn't improperly cover the input */
+.choices__list--dropdown {
+    z-index: 10; /* Higher z-index for the dropdown itself */
+}
+
 /* CAPA Process Steps */
 .process-step {
     padding: 1.5rem;

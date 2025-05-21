@@ -214,7 +214,7 @@
         }
 
         /* Add spacing between items */
-        dl + dl {
+        dl+dl {
             margin-top: 12px;
         }
 
@@ -229,8 +229,12 @@
         .photo {
             max-width: 80%;
             /* Adjust size */
-            height: auto;
-            max-height: 300px;
+            height: 300px;
+            /* CHANGED: Explicit height, matching previous max-height */
+            object-fit: contain;
+            /* ADDED */
+            object-position: center;
+            /* ADDED */
             display: block;
             margin: 10px auto;
             /* Center photo */
@@ -335,6 +339,79 @@
         .evidence-action-link strong {
             color: var(--heading-color);
         }
+
+        .photos-section h2 {
+            margin-bottom: 1em;
+            /* Add some space below the heading */
+        }
+
+        .photo-gallery {
+            display: flex;
+            /* Use flexbox for layout */
+            flex-wrap: wrap;
+            /* Allow items to wrap to the next line */
+            gap: 15px;
+            /* Increased from 10px */
+            margin-bottom: 1em;
+            align-items: flex-start;
+            /* Added for better top alignment */
+        }
+
+        .photo-item {
+            flex: 1 1 calc(33.333% - 10px);
+            /* Responsive columns (e.g., 3 per row) */
+            max-width: calc(33.333% - 10px);
+            box-sizing: border-box;
+            margin-bottom: 15px;
+            /* Added for consistent vertical spacing on wrap */
+        }
+
+        .photo-item img {
+            /* width: 100%; */
+            /* REMOVED */
+            max-width: 100%;
+            /* ADDED: ensures it respects container width */
+            height: 250px;
+            /* Keep explicit height */
+            object-fit: contain;
+            object-position: center;
+            display: block;
+            /* ADDED: better layout control */
+            margin-left: auto;
+            /* ADDED: for centering */
+            margin-right: auto;
+            /* ADDED: for centering */
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .gemba-section .findings-text {
+            background-color: #f9f9f9;
+            padding: 10px 15px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 1em;
+            white-space: pre-wrap;
+            /* Preserve line breaks from nl2br */
+        }
+
+        /* For smaller screens or if fewer images, adjust flex properties if needed */
+        @media (max-width: 768px) {
+            .photo-item {
+                flex: 1 1 calc(50% - 10px);
+                /* 2 per row on medium screens */
+                max-width: calc(50% - 10px);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .photo-item {
+                flex: 1 1 100%;
+                /* 1 per row on small screens */
+                max-width: 100%;
+            }
+        }
     </style>
 </head>
 
@@ -370,46 +447,85 @@
                 <dt>Deskripsi Masalah:</dt>
                 <dd>{{ issue.issue_description | nl2br }}</dd>
             </dl>
-            {% if issue.initial_photo_path %}
-            <h3 style="margin-top: 1.5em;">Foto Awal:</h3>
-            <img src="{{ url_for('uploaded_file', filename=issue.initial_photo_path, _external=True) }}" class="photo"
-                alt="Initial Issue Photo">
+        </div>
+
+        <div class="section photos-section">
+            <h2>Foto Awal Isu</h2>
+            {% if initial_photo_abs_paths %}
+            <div class="photo-gallery">
+                {% for photo_path in initial_photo_abs_paths %}
+                <div class="photo-item">
+                    <img src="{{ photo_path }}" alt="Initial Issue Photo {{ loop.index }}">
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p><em>Tidak ada foto awal yang diunggah.</em></p>
             {% endif %}
         </div>
+
+        {% if gemba_findings or gemba_photo_abs_paths %}
+        <div class="section gemba-section">
+            <h2>Investigasi Gemba</h2>
+            {% if gemba_findings %}
+            <h3>Temuan Investigasi:</h3>
+            <div class="findings-text">
+                {{ gemba_findings | nl2br }}
+            </div>
+            {% endif %}
+
+            {% if gemba_photo_abs_paths %}
+            <h3 style="margin-top: 1.2em;">Foto Investigasi Gemba:</h3>
+            <div class="photo-gallery">
+                {% for photo_path in gemba_photo_abs_paths %}
+                <div class="photo-item">
+                    <img src="{{ photo_path }}" alt="Gemba Investigation Photo {{ loop.index }}">
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if issue.gemba_investigation and issue.gemba_investigation.gemba_submission_timestamp %}
+            <small>Investigasi Gemba Diajukan: {{ issue.gemba_investigation.gemba_submission_timestamp.strftime('%d %B
+                %Y, %H:%M') }}</small>
+            {% endif %}
+        </div>
+        {% endif %}
 
         {% if issue.root_cause %}
         <div class="section">
             <h2>Analisis Akar Masalah (Why Analysis)</h2>
             {% set rca_data = issue.root_cause.ai_suggested_rc_json | fromjson %}
-            
+
             {% if issue.root_cause.user_adjusted_whys_json %}
-                {% set whys = issue.root_cause.user_adjusted_whys %}
-                {% for why in whys %}
-                    {% if loop.last %}
-                        <div class="rca-item"><span class="label">Akar Masalah:</span> {{ why }}</div>
-                    {% else %}
-                        <div class="rca-item"><span class="label">Mengapa {{ loop.index }}:</span> {{ why }}</div>
-                    {% endif %}
-                {% endfor %}
+            {% set whys = issue.root_cause.user_adjusted_whys %}
+            {% for why in whys %}
+            {% if loop.last %}
+            <div class="rca-item"><span class="label">Akar Masalah:</span> {{ why }}</div>
             {% else %}
-                <!-- Fallback for backward compatibility -->
-                {% if issue.root_cause.user_adjusted_why1 %}
-                    <div class="rca-item"><span class="label">Mengapa 1:</span> {{ issue.root_cause.user_adjusted_why1 }}</div>
-                {% endif %}
-                {% if issue.root_cause.user_adjusted_why2 %}
-                    <div class="rca-item"><span class="label">Mengapa 2:</span> {{ issue.root_cause.user_adjusted_why2 }}</div>
-                {% endif %}
-                {% if issue.root_cause.user_adjusted_why3 %}
-                    <div class="rca-item"><span class="label">Mengapa 3:</span> {{ issue.root_cause.user_adjusted_why3 }}</div>
-                {% endif %}
-                {% if issue.root_cause.user_adjusted_why4 %}
-                    <div class="rca-item"><span class="label">Mengapa 4:</span> {{ issue.root_cause.user_adjusted_why4 }}</div>
-                {% endif %}
-                {% if issue.root_cause.user_adjusted_root_cause %}
-                    <div class="rca-item"><span class="label">Akar Masalah:</span> {{ issue.root_cause.user_adjusted_root_cause }}</div>
-                {% endif %}
+            <div class="rca-item"><span class="label">Mengapa {{ loop.index }}:</span> {{ why }}</div>
             {% endif %}
-            
+            {% endfor %}
+            {% else %}
+            <!-- Fallback for backward compatibility -->
+            {% if issue.root_cause.user_adjusted_why1 %}
+            <div class="rca-item"><span class="label">Mengapa 1:</span> {{ issue.root_cause.user_adjusted_why1 }}</div>
+            {% endif %}
+            {% if issue.root_cause.user_adjusted_why2 %}
+            <div class="rca-item"><span class="label">Mengapa 2:</span> {{ issue.root_cause.user_adjusted_why2 }}</div>
+            {% endif %}
+            {% if issue.root_cause.user_adjusted_why3 %}
+            <div class="rca-item"><span class="label">Mengapa 3:</span> {{ issue.root_cause.user_adjusted_why3 }}</div>
+            {% endif %}
+            {% if issue.root_cause.user_adjusted_why4 %}
+            <div class="rca-item"><span class="label">Mengapa 4:</span> {{ issue.root_cause.user_adjusted_why4 }}</div>
+            {% endif %}
+            {% if issue.root_cause.user_adjusted_root_cause %}
+            <div class="rca-item"><span class="label">Akar Masalah:</span> {{ issue.root_cause.user_adjusted_root_cause
+                }}</div>
+            {% endif %}
+            {% endif %}
+
             <small>Analisis Diajukan: {{ issue.root_cause.rc_submission_timestamp.strftime('%d %B %Y, %H:%M') if
                 issue.root_cause.rc_submission_timestamp else 'N/A' }}</small>
         </div>
@@ -552,6 +668,8 @@
             {% endfor %}
         </div>
         {% endif %}
+
+
 
         <div class="footer-text">
             Laporan ini dibuat secara otomatis oleh SANSICO Asisten AI CAPA pada {{ datetime.utcnow().strftime('%d %B

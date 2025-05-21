@@ -18,8 +18,8 @@ class CapaIssue(db.Model):
     machine_name = db.Column(db.String(200))
     # Batch information
     batch_number = db.Column(db.String(100))
-    # Path to initial issue photo
-    initial_photo_path = db.Column(db.String(300))
+    # Paths to initial issue photos (stored as JSON array)
+    initial_photos_json = db.Column(db.Text)  # Changed from String(300) to Text
     submission_timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     # e.g., 'Open', 'Gemba Pending', 'RCA Pending', 'Action Pending', 'Evidence Pending', 'Closed'
     status = db.Column(db.String(50), default='Open', nullable=False)
@@ -33,6 +33,16 @@ class CapaIssue(db.Model):
                                   uselist=False, cascade="all, delete-orphan")  # One-to-one
     evidence = db.relationship(
         'Evidence', backref='capa_issue', cascade="all, delete-orphan")  # One-to-many
+
+    @property
+    def initial_photos(self):
+        if self.initial_photos_json:
+            return json.loads(self.initial_photos_json)
+        return []
+
+    @initial_photos.setter
+    def initial_photos(self, photo_list):
+        self.initial_photos_json = json.dumps(photo_list)
 
 
 class RootCause(db.Model):

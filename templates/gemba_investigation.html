@@ -220,11 +220,19 @@
         <strong>Initial Photo</strong>
       </div>
       <div class="card-body text-center">
-        {% if issue.initial_photo_path %}
-        <img src="{{ url_for('uploaded_file', filename=issue.initial_photo_path) }}" class="img-fluid"
-          alt="Initial Issue Photo">
+        {% if issue.initial_photos %}
+          <div class="row gx-2 gy-2 mb-3">
+            {% for photo_filename in issue.initial_photos %}
+            <div class="col-md-4 col-sm-6 col-12">
+              <a href="{{ url_for('uploaded_file', filename=photo_filename) }}" target="_blank" data-bs-toggle="tooltip" title="Klik untuk melihat ukuran penuh">
+                <img src="{{ url_for('uploaded_file', filename=photo_filename) }}" class="img-fluid rounded shadow-sm initial-issue-photo"
+                     alt="Initial Issue Photo {{ loop.index }}" style="max-height: 200px; width: 100%; object-fit: cover; cursor: pointer;">
+              </a>
+            </div>
+            {% endfor %}
+          </div>
         {% else %}
-        <p>No initial photo was uploaded.</p>
+          <p><em>Tidak ada foto awal yang diunggah.</em></p>
         {% endif %}
       </div>
     </div>
