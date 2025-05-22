@@ -35,6 +35,8 @@
     *   **Logging Enhancements (`ai_learning.py`):**
         *   Improved logging in `cosine_similarity_rca` to include calculated similarity scores.
         *   Added detailed logging for invalid input scenarios in `cosine_similarity_rca`.
+    *   **PDF Report Generation (`routes.py`):**
+        *   Enhanced `generate_pdf_report` to eagerly load `CapaIssue.gemba_investigation` for improved data fetching efficiency and to ensure all timestamp-related data is available.
     *   **Three-Stage Semantic Search for Action Plans:**
         *   Refactored `get_relevant_action_plan_knowledge` to a three-stage process:
             0.  **Stage 0:** Filter by exact `current_capa_machine_name` if provided.
@@ -80,6 +82,7 @@
     *   **Decision to implement file upload animation for 'Foto Bukti' on 'Gemba Investigation' form (`gemba_investigation.html`).**
     *   **Decision to modify the `/api/machine_names` endpoint in `routes.py` to fetch distinct machine names from the `AiKnowledgeBase` table instead of `CapaIssue` table.**
     *   **Decision to refactor `get_relevant_action_plan_knowledge` to a three-stage semantic search process for action plans.**
+    *   **Decision to eagerly load `CapaIssue.gemba_investigation` in `generate_pdf_report` (`routes.py`) for PDF timestamp accuracy and performance.**
     *   Continued use of custom Python scripts for database migrations.
 
 *(This progress assessment reflects the latest enhancements to the AI recommendation system.)*

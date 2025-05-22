@@ -2,6 +2,7 @@ import logging
 from flask import render_template, request, redirect, url_for, flash, jsonify, send_from_directory, make_response, current_app
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
+import pytz
 import os
 import json
 from sqlalchemy import distinct
@@ -12,6 +13,8 @@ from ai_learning import store_knowledge_on_capa_close
 from utils import allowed_file
 from config import UPLOAD_FOLDER
 
+# Define your local timezone
+LOCAL_TIMEZONE = pytz.timezone('Asia/Jakarta')  # Or your specific timezone for +07:00
 
 def register_routes(app):
     @app.route('/dashboard')
@@ -838,10 +841,25 @@ def register_routes(app):
     @app.route('/report/<int:capa_id>/pdf')
     def generate_pdf_report(capa_id):
         issue = CapaIssue.query.options(
+            db.joinedload(CapaIssue.gemba_investigation),
             db.joinedload(CapaIssue.root_cause),
             db.joinedload(CapaIssue.action_plan),
             db.joinedload(CapaIssue.evidence)
         ).get_or_404(capa_id)
+
+        # Convert timestamps to local timezone
+        if issue.submission_timestamp:
+            issue.submission_timestamp = pytz.utc.localize(issue.submission_timestamp).astimezone(LOCAL_TIMEZONE)
+        if issue.gemba_investigation and issue.gemba_investigation.gemba_submission_timestamp:
+            issue.gemba_investigation.gemba_submission_timestamp = pytz.utc.localize(issue.gemba_investigation.gemba_submission_timestamp).astimezone(LOCAL_TIMEZONE)
+        if issue.root_cause and issue.root_cause.rc_submission_timestamp:
+            issue.root_cause.rc_submission_timestamp = pytz.utc.localize(issue.root_cause.rc_submission_timestamp).astimezone(LOCAL_TIMEZONE)
+        if issue.action_plan and issue.action_plan.action_submission_timestamp:
+            issue.action_plan.action_submission_timestamp = pytz.utc.localize(issue.action_plan.action_submission_timestamp).astimezone(LOCAL_TIMEZONE)
+        
+        for ev in issue.evidence:
+            if ev.evidence_submission_timestamp:
+                ev.evidence_submission_timestamp = pytz.utc.localize(ev.evidence_submission_timestamp).astimezone(LOCAL_TIMEZONE)
 
         # Render the HTML template with the issue data
         initial_photo_abs_paths = []

@@ -20,7 +20,9 @@
         *   Menginisialisasi model `SentenceTransformer` di tingkat modul.
         *   Memperbarui fungsi `get_embedding` (sekarang `get_embedding_st` dan `get_embedding_st_rca`) untuk menggunakan metode `model.encode()` dari `sentence-transformers`.
         *   Menghapus ketergantungan pada `GOOGLE_API_KEY` untuk proses embedding.
-    *   **Dependency Update (`requirements.txt`):**
+        *   **Route Update (`routes.py`):**
+            *   Modified `generate_pdf_report` to eagerly load `CapaIssue.gemba_investigation` using `db.joinedload()` for PDF report generation, ensuring all related data (including timestamps) is efficiently fetched.
+        *   **Dependency Update (`requirements.txt`):**
         *   Menambahkan `sentence-transformers` ke `requirements.txt`.
     *   **AI Prompt Enhancement (`ai_service.py`):** (Perubahan sebelumnya, masih relevan)
         *   Memodifikasi prompt untuk `trigger_rca_analysis` dan `trigger_action_plan_recommendation` agar AI tidak menyertakan frasa "Mengadaptasi dari contoh 1 & 2" dalam responsnya.
