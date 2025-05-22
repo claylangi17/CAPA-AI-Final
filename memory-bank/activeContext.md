@@ -4,9 +4,62 @@
 
 **Key Sections:**
 
-*   **Current Focus:** Explaining the basis of semantic similarity for action plan recommendations now that the feature is operational. Discussing potential tuning of similarity thresholds or weights.
+*   **Current Work Focus**
+    - **Enhancing Dashboard Date Filters (Testing Phase):**
+        - `dashboard.html`: 
+            - UI for tiered date filters (Predefined, Year/Month/Week, Custom Range) and JS logic to send parameters to backend.
+            - **Recent JS Updates (Current Session):** Implemented default year selection for YMW filter, ensured year parameter is consistently sent, and improved fallback query. Minor UI aesthetic improvements to filter bar spacing and alignment.
+        - `routes.py` (`dashboard_data` function):
+            - Added logic to parse new filter parameters: `filter_type`, `year`, `month`, `week`, `start_date`, `end_date`.
+            - Calculates `from_date_obj` and `to_date_obj` based on these parameters.
+            - Applies these date objects to filter `capa_issue_query` to create `query_after_date_filter`.
+            - All subsequent chart aggregations now use `query_after_date_filter`.
+            - Imported `date` from `datetime` and `calendar`.
+            - Fixed indentation errors introduced during the modification of filter logic.
+    - **New Feature: Forgot Password by Email**
+        - User requested a 'Forgot Password' feature.
+        - Began implementation by adding `Flask-Mail` to `requirements.txt`, adding mail configuration to `app.py` (to be sourced from `.env`), and adding token generation/verification methods (`get_reset_token`, `verify_reset_token`) to the `User` model in `models.py`.
+        - Fixed two critical errors in token generation: 
+            1. Updated the `URLSafeTimedSerializer` implementation in the `User` model to correctly handle token generation without passing the expiration time to the constructor, which was causing a TypeError.
+            2. Removed the `.decode('utf-8')` call since the `dumps` method in the current version of `itsdangerous` already returns a string, not bytes.
+    *   **Dashboard Bug Fix:** User reported discrepancy in 'Status Distribution' chart on Dashboard Analytic page (showed 2 'Action Pending' vs 1 'Closed' CAPA for the selected company on main dashboard). Investigated `dashboard_data` route and found that the company filter was being lost during status calculation due to query re-initialization. Applied a fix to ensure company filter persists for status distribution.
+    *   **Dashboard Verification:** Verified backend logic for 'Repeated Issues' and 'Issue Trends' charts in `dashboard_data`. Confirmed they correctly handle and display data for a single CAPA scenario within the selected company context.
 
-*   **Recent Changes (UI/UX Enhancements and Semantic Search Model Update):**
+**Recent Changes (New Feature Initiation, Startup Issue Resolution, etc.):**
+    *   **Dashboard Date Filter Backend (`routes.py`):**
+        *   Implemented backend logic in `dashboard_data` to receive and process new date filter parameters (`filter_type`, `year`, `month`, `week`, `start_date`, `end_date`).
+        *   Ensured date filters are applied correctly to the base query for all chart data aggregations.
+        *   Corrected Python indentation errors that arose during the implementation of the new filter logic.
+    *   **New Feature Initiation: Multi-Company Support**
+        *   Received user request for multi-company functionality with role-based access (Super User vs. User) and data filtering, including a specific list of companies.
+        *   Updated `projectbrief.md` and `productContext.md` to reflect this new major requirement.
+    *   **User Query about CAPA ID Generation:**
+        *   User inquired about CAPA ID generation, specifically why a new CAPA for a new company did not start with ID 1.
+        *   Clarified that `CapaIssue.capa_id` is a global auto-incrementing primary key, not reset or sequenced per company. This is standard database behavior for ensuring unique record identifiers across the entire table.
+    *   **Startup Module Error Resolution (`flask_login`, `flask_wtf`):
+    *   **Startup Module Error Resolution (`flask_login`, `flask_wtf`):
+        *   Encountered `ModuleNotFoundError` for `flask_login` and subsequently `flask_wtf` despite being listed in `requirements.txt`.
+        *   Troubleshooting steps included:
+            *   Verifying `requirements.txt`.
+            *   Attempting to run `app.py` with the explicit virtual environment Python interpreter (`.\.venv\Scripts\python.exe app.py`).
+            *   Forcing reinstallation of packages using `.\.venv\Scripts\pip.exe install --force-reinstall ...`.
+            *   Checking `sys.path` for the venv Python interpreter to confirm `site-packages` was included.
+            *   Listing `site-packages` directory contents to confirm missing packages.
+        *   Identified that `pip.exe` might be resolving to an incorrect venv due to how the project copy was made or PowerShell path resolution.
+        *   **Successfully resolved by installing packages using the command: `& "d:\Coding\CAPA AI Final - Copy\CAPA AI Assistant\.venv\Scripts\python.exe" -m pip install <package_name>==<version>`. This ensures `pip` is run as a module of the correct Python interpreter within the correct virtual environment.**
+        *   The application (`app.py`) now starts successfully without module errors.
+    *   **User Registration Refinement & Testing:**
+        *   Successfully resolved `ModuleNotFoundError: No module named 'email_validator'` by ensuring `pip install -r requirements.txt` was run in the correct virtual environment (`D:\Coding\CAPA AI Final - Copy\CAPA AI Assistant\venv\`).
+        *   Modified `routes.py` in the `/register` route to filter the company selection dropdown, excluding "Sansico Group (all company combine)" and "Unassigned" for new regular user registrations.
+        *   Confirmed that new users can register, select an appropriate company, and log in. Post-login, regular users do not see a company selection dropdown and are scoped to their registered company.
+    *   **User Authentication Flow Verification:**
+        *   Successfully tested and confirmed the entire authentication flow:
+            *   Unauthorized access to protected routes redirects to login.
+            *   Successful login with valid credentials.
+            *   Authorized access to protected routes post-login.
+            *   Successful logout.
+            *   Unauthorized access to protected routes post-logout (redirects to login).
+    *   **UI Enhancements (`new_capa.html`, `view_capa.html`, and `gemba_investigation.html`):**
     *   **UI Enhancements (`new_capa.html`, `view_capa.html`, and `gemba_investigation.html`):**
         *   Implemented file upload animation on 'Submit New CAPA Issue' form: Added a spinner and 'uploading' message for the 'Initial Issue Photo' field.
         *   Enhanced 'Machine Name' input on `new_capa.html`: Replaced free text input with a searchable dropdown using Choices.js.
@@ -47,34 +100,48 @@
     *   **Further Refined Action Plan Search (`ai_learning.py`):** Added an initial **Stage 0** to `get_relevant_action_plan_knowledge`:
         *   **Stage 0:** Filter potential action plans by exact `current_capa_machine_name` *before* semantic search stages.
         *   Stages 1 (Issue Sim.) and 2 (Whys Sim.) now operate on this machine-filtered list.
+    *   **UI Navbar Enhancements (`templates/base.html`):**
+        *   Added vertical padding (`py-2`) to the main navbar element.
+        *   Added an offset (`data-bs-offset="0,10"`) to company selector and user dropdown toggles.
+        *   Applied rounded corners (`rounded-3`) to dropdown menus.
+        *   Adjusted `top` style of `#sticky-flash-container` to `78px`.
+        *   Fixed alignment issue for regular users by changing company display from `<span class="navbar-text me-3">` to `<a class="nav-link" href="#">` within a `<li class="nav-item dropdown">` element for consistent styling with super_admin view.
+    *   **Navbar Alignment Fix for Regular Users:** Fixed the alignment issue for regular users by modifying the company display in the navbar to ensure consistent styling with the super admin view.
 
-*   **Next Steps:**
-    1.  **Thoroughly test the new *three-stage* semantic search for action plan recommendations (Machine Filter -> Issue Sim. -> Whys Sim.).**
-        *   Verify correct filtering at each stage.
-        *   Check logging for clarity.
-        *   Evaluate the relevance of the final recommendations under this new logic.
-    2.  Discuss with the USER if the new three-stage approach and its results (Machine Filter -> Top 5 Issue -> Top 3 Whys) are satisfactory, or if further tuning of N/M values is desired.
-    3.  **Explain the basis of similarity calculation for action plans to the USER.** (Currently doing)
-    4.  Discuss with the USER if the current similarity threshold (0.3) and weighting (30% issue, 70% Whys) provide good results, or if tuning is desired.
-    5.  **Crucial:** Uji kualitas rekomendasi AI untuk RCA dan Action Plan dengan model embedding `paraphrase-multilingual-MiniLM-L12-v2`. Verifikasi apakah AI sekarang menghasilkan saran yang lebih relevan (Action plan part seems to be working, RCA needs checking too).
-    6.  Pastikan dependensi `sentence-transformers` terinstal dengan benar di lingkungan deployment (`pip install -r requirements.txt`).
-    7.  Monitor log aplikasi untuk memastikan tidak ada error terkait model embedding baru.
-    8.  Run the application to verify the enhanced logging in `cosine_similarity_rca` and overall cosine similarity functionality.
-    9.  Verifikasi bahwa AI tidak lagi menyertakan frasa "Mengadaptasi dari contoh" dalam responsnya (tugas berkelanjutan).
-    10. Pertimbangkan untuk menyesuaikan threshold similarity (saat ini 0.3) jika diperlukan setelah pengujian dengan model baru.
-    11. Evaluasi keseimbangan antara precision dan recall dalam hasil semantic search dengan model baru.
-    12. Await user feedback on the new upload animation and form enhancements.
-    13. Continue addressing items from the `todo.md` or new user requests.
-    14. Verify the functionality of all recent UI enhancements:
-        *   File upload animation on `new_capa.html` (Initial Issue Photo).
-        *   Searchable dropdown for 'Machine Name' on `new_capa.html` (ensure data now comes from `AiKnowledgeBase`).
-        *   File upload animation on `view_capa.html` (Edit Bukti).
-        *   File upload animation on `gemba_investigation.html` (Foto Bukti).
-    15. Test the submission process for forms with these new animations to ensure data is correctly submitted and animations behave as expected.
-    16. Address any further UI/UX feedback or issues that arise from testing.
-    17. **Created `HOW_TO_RUN.md` to document application setup and execution.**
+*   **Next Steps & Action Items:**
+    1.  **Review Navbar UI Changes:**
+        - User to review the recent navbar UI enhancements in `templates/base.html`.
+        - Provide feedback for any further adjustments.
+    2.  **Test Dashboard Date Filters (USER ACTION REQUIRED):**
+        - User to thoroughly test the recent JavaScript and UI changes in `dashboard.html` for date filtering (Predefined, Year/Month/Week, Custom Range).
+        - Verify data is filtered and displayed correctly, especially the YMW filter's default year behavior.
+        - Provide feedback on UI aesthetic changes to the filter bar.
+    3.  **Review `routes.py` for Lint Errors:**
+        - Address any remaining lint errors in `routes.py` after recent backend fixes.
+    4.  **Finalize Forgot Password Feature:**
+        - User to configure actual email sending credentials in `.env` for the 'Forgot Password' feature.
+        - Test the end-to-end 'Forgot Password' flow.
+    5.  **Continue Multi-Company Feature Development:**
+        - User to run the `reassign_company_data.py` script (after backing up the database) to migrate existing data.
+        - User to verify that the excluded companies no longer appear in UI dropdowns.
+        - User to manually delete the excluded companies (IDs 1, 11, 12) from the `companies` table via phpMyAdmin after successful data migration and verification.
+        - Continue with the implementation of multi-company data handling for other routes (e.g., `edit_capa`, `view_capa`).
+        - Thoroughly test the application, especially company selection and data association.
+        - Update all relevant Memory Bank files based on testing outcomes and further development.
+    6.  **Database Migration (Multi-Company):**
+        - Plan and execute database migration for multi-company model changes if not already fully completed (associating existing records, ensuring constraints).
+    7.  **Memory Bank Update:**
+        - Comprehensively update all relevant Memory Bank files (`progress.md`, `systemPatterns.md`, `techContext.md`, etc.) to reflect the current project state, including multi-company architecture and recent UI changes.
 
 *   **Active Decisions/Considerations:**
+    *   The week calculation logic in `routes.py` for the 'Year/Month/Week' dashboard filter is a simple implementation (e.g., week 1 is days 1-7). This may need refinement based on user feedback or specific business requirements (e.g., ISO week standards).
+    *   **Decision to prioritize multi-company feature development based on user request.**
+    *   **Initial data model design for multi-company:**
+        *   A new `Company` table will be created (attributes: `id`, `name`, `code`).
+        *   The `User` table will be modified to include a `role` field (e.g., string values 'super_user', 'user') and a `company_id` (ForeignKey to `Company.id`).
+        *   A `company_id` (ForeignKey to `Company.id`) will be added to all primary data tables that need to be company-specific (e.g., `CapaIssue`, `AIKnowledgeBase`, and their related tables like `GembaInvestigation`, `RootCause`, `ActionPlan`).
+    *   User roles defined as 'Super Role' (can access all company data and an aggregated view) and 'User' (access only their own company's data).
+    *   The company selection will likely be stored in the user's session.
     *   Mengganti model embedding ke `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` untuk potensi peningkatan kualitas semantic search, terutama untuk teks multilingual.
     *   Menurunkan threshold similarity dari 0.5 menjadi 0.3 untuk meningkatkan recall dalam pencarian semantic (keputusan sebelumnya, mungkin perlu ditinjau ulang dengan model baru).
     *   Memodifikasi prompt AI untuk mencegah penggunaan frasa "Mengadaptasi dari contoh" (keputusan sebelumnya).
@@ -86,11 +153,20 @@
     *   JavaScript logic for Choices.js dropdown on `new_capa.html` was refined to correctly combine API-fetched machine names with a static 'Other (manual input)' option before rendering.
     *   The `gemba_investigation.html` already had an AI processing overlay; the new file upload animation was integrated to appear before this overlay if files are being uploaded.
     *   **The `/api/machine_names` endpoint in `routes.py` now queries the `AiKnowledgeBase` table for machine names instead of `CapaIssue`.**
+    *   Ensured Python packages are installed into the correct virtual environment by invoking `pip` as a module of the venv's Python interpreter (`python.exe -m pip install ...`).
+    *   Utilized PowerShell's call operator `&` and quoted executable paths for robust command execution when paths contain spaces.
 
-*   **Open Questions/Decisions:**
+*   **Open Questions/Decisions (Multi-Company Feature):**
+    *   How will existing user and CAPA data be migrated/associated with the new company structure? (e.g., default company, script for assignment, manual update?)
+    *   What is the exact behavior for the "Sansico Group (all company combine)" option in the dropdown? Is it a true data aggregation across tables, or does it imply 'no company filter' for super users (showing all records)? True aggregation can be complex.
+    *   Where precisely in the UI header (as requested by user image) should the company dropdown be placed, and how will it interact with existing navigation elements for optimal UX?
+    *   How will the 'company code' (e.g., 191, 180) be used? Is it just for display, or for linking/filtering as well?
+    *   Will there be an admin interface to manage companies and user-company assignments?
+
+*   **Open Questions/Decisions (Existing Features):**
     *   Are the Top 5 (issue sim) / Top 3 (Whys sim) counts optimal for action plan recommendations after machine name filtering?
     *   Should the RCA recommendation logic (`get_relevant_rca_knowledge`) be updated to a similar multi-stage process?
-    *   What is the next major feature or improvement focus after validating current AI functionalities?
+    *   What is the next major feature or improvement focus after validating current AI functionalities (now superseded by multi-company feature)?
 
 *   **Important Patterns/Preferences:**
     *   Menggunakan semantic search (sekarang dengan `sentence-transformers`) untuk menemukan action plan dan RCA yang relevan.
@@ -102,6 +178,9 @@
     *   Importance of providing visual feedback (animations) during time-consuming operations like file uploads.
 
 *   **Learnings/Insights:**
+    *   PowerShell requires careful handling of commands with paths containing spaces and arguments. Using the call operator (`&`) and quoting the executable path (`& "path\to\exe" args`) is more reliable.
+    *   Invoking `pip` as a module of a specific Python interpreter (`python.exe -m pip ...`) is the most robust way to ensure packages are installed into that interpreter's environment, especially when multiple virtual environments or complex project setups are involved.
+    *   Copying virtual environment folders directly can sometimes lead to `pip` or other scripts retaining incorrect path associations.
     *   `sentence-transformers` menyediakan cara yang mudah untuk menggunakan berbagai model embedding pre-trained.
     *   Model `paraphrase-multilingual-MiniLM-L12-v2` diharapkan memberikan hasil yang baik untuk teks dalam berbagai bahasa.
     *   Perubahan model embedding memerlukan pembaruan pada cara embedding dihasilkan dan dependensi proyek.

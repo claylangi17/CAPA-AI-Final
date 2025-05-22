@@ -13,6 +13,10 @@
     *   System: MySQL (using `mysql+pymysql` driver)
     *   ORM: Flask-SQLAlchemy
     *   Default DB Name: `capa_ai_system` (Configurable via environment variables)
+    *   **Data Model Enhancements (Multi-Company):**
+        *   New `Company` model (`id`, `name`, `code`).
+        *   `User` model modified to include `role` (e.g., 'super_user', 'user') and `company_id` (ForeignKey to `Company.id`).
+        *   `company_id` field to be added to relevant data tables (e.g., `CapaIssue`, `AIKnowledgeBase`) to associate records with specific companies.
 
 *   **Key Libraries/Dependencies:** (from `requirements.txt`)
     *   `Flask`: Web framework core
@@ -22,6 +26,7 @@
     *   `WeasyPrint`: PDF generation from HTML/CSS (for reports).
     *   `python-dotenv`: Loading environment variables from a `.env` file.
     *   `PyMySQL`: MySQL database driver (implied by connection string).
+    *   `email-validator`: For validating email address formats in WTForms.
 
 *   **Development Setup:**
     1.  Ensure Python 3.x and `pip` are installed.
@@ -35,6 +40,7 @@
     4.  Create a Python virtual environment (recommended): `python -m venv .venv` and activate it.
     5.  Install dependencies: `pip install -r requirements.txt`
     6.  Run the application: `python app.py`. The database tables should be created automatically on the first run.
+    *   **User Registration (Multi-Company):** New user registration (`/register`) assigns users to a specific company (selected from a filtered list excluding 'Sansico Group' and 'Unassigned') and assigns a default 'user' role. Email validation is active.
 
 *   **Tooling:**
     *   Virtual Environments (`.venv` folder suggests usage)

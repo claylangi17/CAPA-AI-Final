@@ -1,129 +1,514 @@
-import logging
-from flask import render_template, request, redirect, url_for, flash, jsonify, send_from_directory, make_response, current_app
-from werkzeug.utils import secure_filename
-from datetime import datetime, timedelta
-import pytz
-import os
+# Standard Library
+import calendar
 import json
-from sqlalchemy import distinct
+import os
+from datetime import date, datetime, timedelta
+from pathlib import Path
 
-from models import db, CapaIssue, RootCause, ActionPlan, Evidence, GembaInvestigation, AIKnowledgeBase
-from ai_service import trigger_rca_analysis, trigger_action_plan_recommendation
+# Third-Party Imports
+import pdfkit
+import pytz
+from flask import (
+    current_app,
+    flash,
+    jsonify,
+    make_response,
+    redirect,
+    render_template,
+    request,
+    send_from_directory,
+    session,
+    url_for
+)
+from flask_login import (
+    current_user,
+    login_required,
+    login_user,
+    logout_user
+)
+from flask_mail import Message
+from flask_wtf import FlaskForm
+from sqlalchemy import distinct
+from werkzeug.utils import secure_filename
+from wtforms import (
+    PasswordField,
+    SelectField,
+    StringField,
+    SubmitField
+)
+from wtforms.validators import (
+    DataRequired,
+    Email,
+    EqualTo,
+    Length,
+    ValidationError
+)
+
+# Local Application Imports
 from ai_learning import store_knowledge_on_capa_close
-from utils import allowed_file
+from ai_service import (
+    trigger_action_plan_recommendation,
+    trigger_rca_analysis
+)
 from config import UPLOAD_FOLDER
+from models import (
+    AIKnowledgeBase,
+    CapaIssue,
+    Company,
+    db,
+    Evidence,
+    GembaInvestigation,
+    User
+)
+from utils import allowed_file
 
 # Define your local timezone
 LOCAL_TIMEZONE = pytz.timezone('Asia/Jakarta')  # Or your specific timezone for +07:00
 
 def register_routes(app):
+
+    @app.context_processor
+    def inject_company_context():
+        available_companies = []
+        selected_company_id = None
+        selected_company_name = "All Companies" # Default for super_user if nothing is selected
+
+        if current_user.is_authenticated:
+            if current_user.role == 'super_admin':
+                available_companies = Company.query.order_by(Company.name).all()
+                # Try to get selected company from session
+                session_company_id = session.get('selected_company_id')
+                if session_company_id and session_company_id != 'all':
+                    company = Company.query.get(session_company_id)
+                    if company:
+                        selected_company_id = company.id
+                        selected_company_name = company.name
+                elif session_company_id == 'all':
+                    selected_company_id = 'all'
+                    selected_company_name = "All Companies"
+                # If nothing in session for super_admin, default to their own company or 'All Companies'
+                elif current_user.company_id: # Super admin has an assigned company
+                    company = Company.query.get(current_user.company_id)
+                    if company:
+                        session['selected_company_id'] = current_user.company_id
+                        session['selected_company_name'] = company.name
+                        selected_company_id = current_user.company_id
+                        selected_company_name = company.name
+                    else: # Assigned company not found, default to 'all'
+                        session['selected_company_id'] = 'all'
+                        session['selected_company_name'] = "All Companies"
+                        selected_company_id = 'all'
+                        selected_company_name = "All Companies"
+                        app.logger.warning(f"Super admin {current_user.username} assigned company ID {current_user.company_id} not found during context injection. Defaulting to 'All Companies'.")
+                else: # Super user not tied to a company, defaults to all
+                    session['selected_company_id'] = 'all'
+                    session['selected_company_name'] = "All Companies"
+                    selected_company_id = 'all'
+                    selected_company_name = "All Companies"
+
+            else: # Regular user
+                if current_user.company_id:
+                    company = Company.query.get(current_user.company_id)
+                    if company:
+                        available_companies = [company] # Only their own company
+                        selected_company_id = company.id
+                        selected_company_name = company.name
+                        session['selected_company_id'] = company.id
+                        session['selected_company_name'] = company.name
+                    else:
+                        # Should not happen if data is consistent
+                        flash('Error: Your assigned company is not found. Please contact support.', 'danger')
+                        selected_company_name = "Error: Company Not Found"
+                else:
+                    # User not assigned to any company - critical issue
+                    flash('Critical Error: You are not assigned to any company. Please contact support.', 'danger')
+                    selected_company_name = "Error: No Company Assigned"
+        
+        return dict(
+            available_companies=available_companies, 
+            selected_company_id=selected_company_id,
+            selected_company_name=selected_company_name
+        )
+
+
+    class RequestPasswordResetForm(FlaskForm):
+        email = StringField('Email', validators=[DataRequired(), Email()])
+        submit = SubmitField('Request Password Reset')
+
+    class ResetPasswordForm(FlaskForm):
+        password = PasswordField('Password', validators=[DataRequired()])
+        confirm_password = PasswordField('Confirm Password', validators=[DataRequired(), EqualTo('password')])
+        submit = SubmitField('Reset Password')
+
+    class RegistrationForm(FlaskForm):
+        username = StringField('Username', validators=[DataRequired(), Length(min=4, max=25)])
+        email = StringField('Email', validators=[DataRequired(), Email()])
+        company_id = SelectField('Company', coerce=int, validators=[DataRequired()])
+        password = PasswordField('Password', validators=[DataRequired(), Length(min=6)])
+        confirm_password = PasswordField('Confirm Password', validators=[DataRequired(), EqualTo('password')])
+        submit = SubmitField('Register')
+
+        def validate_username(self, username):
+            user = User.query.filter_by(username=username.data).first()
+            if user:
+                raise ValidationError('That username is taken. Please choose a different one.')
+
+        def validate_email(self, email):
+            user = User.query.filter_by(email=email.data).first()
+            if user:
+                raise ValidationError('That email is already registered. Please choose a different one.')
+
+    class LoginForm(FlaskForm):
+        username = StringField('Username', validators=[DataRequired()])
+        password = PasswordField('Password', validators=[DataRequired()])
+        submit = SubmitField('Login')
+
+    @app.route('/login', methods=['GET', 'POST'])
+    def login():
+        if current_user.is_authenticated:
+            return redirect(url_for('index'))
+        form = LoginForm()
+        if form.validate_on_submit():
+            user = User.query.filter_by(username=form.username.data).first()
+            if user and user.check_password(form.password.data):
+                login_user(user)
+
+                # Set initial company context in session after login
+                if user.role == 'super_admin':
+                    if user.company_id:
+                        company = Company.query.get(user.company_id)
+                        if company: # Ensure company exists
+                            session['selected_company_id'] = user.company_id
+                            session['selected_company_name'] = company.name
+                        else: # Super admin's assigned company not found, default to 'all'
+                            session['selected_company_id'] = 'all'
+                            session['selected_company_name'] = "All Companies"
+                            app.logger.warning(f"Super admin {user.username} assigned company ID {user.company_id} not found. Defaulting to 'All Companies'.")
+                    else: # Super admin not tied to a specific company
+                        session['selected_company_id'] = 'all'
+                        session['selected_company_name'] = "All Companies"
+                else: # Regular user
+                    if user.company_id:
+                        company = Company.query.get(user.company_id)
+                        if company: # Ensure company exists
+                            session['selected_company_id'] = user.company_id
+                            session['selected_company_name'] = company.name
+                        else: # Should not happen if data is consistent
+                            session.pop('selected_company_id', None)
+                            session.pop('selected_company_name', None)
+                            flash('Error: Your assigned company could not be loaded. Please contact support.', 'danger')
+                            app.logger.error(f"User {user.username} assigned company ID {user.company_id} not found.")
+                    else: # Regular user without a company_id - data integrity issue
+                        session.pop('selected_company_id', None)
+                        session.pop('selected_company_name', None)
+                        flash('Critical Error: You are not assigned to a company. Please contact support.', 'danger')
+                        app.logger.error(f"User {user.username} has no company_id assigned.")
+                
+                flash('Logged in successfully!', 'success')
+                next_page = request.args.get('next')
+                return redirect(next_page or url_for('index'))
+            else:
+                flash('Login Unsuccessful. Please check username and password', 'danger')
+        return render_template('login.html', title='Login', form=form)
+
+    @app.route('/register', methods=['GET', 'POST'])
+    def register():
+        if current_user.is_authenticated:
+            return redirect(url_for('index'))
+        form = RegistrationForm()
+        # Populate company choices - ensuring it's done before validation if needed, or on GET
+        form.company_id.choices = [
+            (c.id, c.name) for c in Company.query.filter(
+                Company.name.notin_(['Sansico Group (all company combine)', 'Unassigned'])
+            ).order_by(Company.name).all()
+        ]
+        if not form.company_id.choices:
+             flash('No companies available for registration. Please contact an administrator.', 'warning')
+             # Potentially disable form or handle differently
+
+        if form.validate_on_submit():
+            try:
+                user = User(
+                    username=form.username.data, 
+                    email=form.email.data, 
+                    company_id=form.company_id.data,
+                    role='user' # Default role for new registrations
+                )
+                user.set_password(form.password.data) # Hash password
+                db.session.add(user)
+                db.session.commit()
+                flash('Your account has been created! You are now able to log in.', 'success')
+                return redirect(url_for('login'))
+            except Exception as e:
+                db.session.rollback()
+                app.logger.error(f"Error during registration: {e}")
+                flash('An error occurred during registration. Please try again.', 'danger')
+        else:
+            # Log validation errors for debugging if POST request fails validation
+            if request.method == 'POST':
+                app.logger.warning(f"Registration form validation errors: {form.errors}")
+
+        return render_template('register.html', title='Register', form=form)
+
+    @app.route('/logout')
+    @login_required
+    def logout():
+        logout_user()
+        flash('You have been logged out.', 'info')
+        return redirect(url_for('login'))
+
+    def send_reset_email(user):
+        token = user.get_reset_token()
+        msg = Message('Password Reset Request',
+                      sender=current_app.config['MAIL_DEFAULT_SENDER'],
+                      recipients=[user.email])
+        msg.html = render_template('reset_email.html', user=user, token=token)
+        try:
+            current_app.extensions['mail'].send(msg)
+            return True
+        except Exception as e:
+            current_app.logger.error(f"Error sending password reset email: {e}")
+            return False
+
+    @app.route('/request_reset_token', methods=['GET', 'POST'])
+    def request_reset_token():
+        if current_user.is_authenticated:
+            return redirect(url_for('index'))
+        form = RequestPasswordResetForm()
+        if form.validate_on_submit():
+            user = User.query.filter_by(email=form.email.data).first()
+            if user:
+                if send_reset_email(user):
+                    flash('An email has been sent with instructions to reset your password.', 'info')
+                else:
+                    flash('There was an error sending the password reset email. Please try again later or contact support.', 'danger')
+            else:
+                # Still flash info to prevent user enumeration
+                flash('If an account exists with that email, an email has been sent with instructions to reset your password.', 'info')
+            return redirect(url_for('login'))
+        return render_template('request_reset_token.html', title='Reset Password', form=form)
+
+    @app.route('/reset_token/<token>', methods=['GET', 'POST'])
+    def reset_token(token):
+        if current_user.is_authenticated:
+            return redirect(url_for('index'))
+        user = User.verify_reset_token(token)
+        if user is None:
+            flash('That is an invalid or expired token.', 'warning')
+            return redirect(url_for('request_reset_token'))
+        form = ResetPasswordForm()
+        if form.validate_on_submit():
+            user.set_password(form.password.data)
+            db.session.commit()
+            flash('Your password has been updated! You are now able to log in.', 'success')
+            return redirect(url_for('login'))
+        return render_template('reset_token.html', title='Reset Password', form=form)
+
     @app.route('/dashboard')
+    @login_required
     def dashboard():
         return render_template('dashboard.html')
 
+    @app.route('/select_company', methods=['POST'])
+    @login_required
+    def select_company():
+        if current_user.role != 'super_admin':
+            flash('You do not have permission to switch companies.', 'danger')
+            return redirect(request.referrer or url_for('index'))
+
+        selected_id = request.form.get('company_id')
+        
+        if selected_id == 'all':
+            session['selected_company_id'] = 'all'
+            session['selected_company_name'] = "All Companies"
+            flash('Viewing data for All Companies.', 'info')
+        else:
+            try:
+                company_id_int = int(selected_id)
+                company = Company.query.get(company_id_int)
+                if company:
+                    session['selected_company_id'] = company.id
+                    session['selected_company_name'] = company.name
+                    flash(f'Switched to company: {company.name}', 'success')
+                else:
+                    flash('Invalid company selected.', 'danger')
+            except ValueError:
+                flash('Invalid company ID format.', 'danger')
+        
+        return redirect(request.referrer or url_for('index'))
+
+
     @app.route('/dashboard/data')
+    @login_required
     def dashboard_data():
+        s_company_id = session.get('selected_company_id')
+        capa_issue_query = CapaIssue.query
+        ai_kb_query = AIKnowledgeBase.query # Assuming you might want to filter this too
+
+        if current_user.role == 'super_admin' and s_company_id == 'all':
+            pass # No company filter for super_admin viewing all
+        elif s_company_id is not None and s_company_id != 'all':
+            try:
+                company_id_int = int(s_company_id)
+                capa_issue_query = capa_issue_query.filter(CapaIssue.company_id == company_id_int)
+                ai_kb_query = ai_kb_query.filter(AIKnowledgeBase.company_id == company_id_int)
+            except ValueError:
+                app.logger.error(f"Invalid company_id '{s_company_id}' in session for dashboard_data for user {current_user.username}.")
+                capa_issue_query = capa_issue_query.filter(CapaIssue.company_id == -1)
+                ai_kb_query = ai_kb_query.filter(AIKnowledgeBase.company_id == -1)
+        elif current_user.role != 'super_admin' and s_company_id is None:
+            app.logger.warning(f"User {current_user.username} (role: {current_user.role}) has no selected_company_id in session for dashboard_data.")
+            capa_issue_query = capa_issue_query.filter(CapaIssue.company_id == -1)
+            ai_kb_query = ai_kb_query.filter(AIKnowledgeBase.company_id == -1)
+        elif current_user.role == 'super_admin' and s_company_id is None:
+            app.logger.warning(f"Super admin {current_user.username} has no selected_company_id in session for dashboard_data. Defaulting to all.")
+            # No filter, effectively 'all'
+            pass 
+        else:
+            app.logger.error(f"Unexpected company session state for dashboard_data user {current_user.username}, role {current_user.role}, session company ID {s_company_id}.")
+            capa_issue_query = capa_issue_query.filter(CapaIssue.company_id == -1)
+            ai_kb_query = ai_kb_query.filter(AIKnowledgeBase.company_id == -1)
+
+        # The capa_issue_query and ai_kb_query are already filtered by company context at the beginning of this function.
+        # We will use capa_issue_query for all CapaIssue related aggregations.
+
         try:
-            # Get time range parameter
-            time_range = request.args.get('range', '12m')
-            print(f"Fetching data for time range: {time_range}")
+            from_date_obj = None
+            to_date_obj = None
+            today = date.today()
 
-            # Calculate date range based on parameter
-            from_date = None
-            if time_range == '12m':
-                from_date = datetime.now() - timedelta(days=365)
-            elif time_range == '6m':
-                from_date = datetime.now() - timedelta(days=180)
-            elif time_range == '3m':
-                from_date = datetime.now() - timedelta(days=90)
-            elif time_range == '1m':
-                from_date = datetime.now() - timedelta(days=30)
+            filter_type = request.args.get('filter_type')
+            time_range = request.args.get('range') # For predefined/default
 
-            # Base query with date filter if applicable
-            base_query = db.session.query(CapaIssue)
-            if from_date:
-                base_query = base_query.filter(
-                    CapaIssue.issue_date >= from_date)
+            print(f"Dashboard data request: filter_type='{filter_type}', range='{time_range}', year='{request.args.get('year')}', month='{request.args.get('month')}', week='{request.args.get('week')}', start_date='{request.args.get('start_date')}', end_date='{request.args.get('end_date')}'")
+
+            if filter_type == 'custom':
+                start_date_str = request.args.get('start_date')
+                end_date_str = request.args.get('end_date') # RESTORED
+                if start_date_str:
+                    try:
+                        from_date_obj = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+                    except ValueError:
+                        app.logger.warning(f"Invalid start_date format: {start_date_str}")
+                if end_date_str:
+                    try:
+                        to_date_obj = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+                    except ValueError:
+                        app.logger.warning(f"Invalid end_date format: {end_date_str}")
+            elif filter_type == 'ymw': # RESTORED BLOCK
+                year_str = request.args.get('year')
+                month_str = request.args.get('month') # Can be 'all' or number
+                week_str = request.args.get('week')   # Can be 'all' or number
+
+                if year_str:
+                    try:
+                        year = int(year_str)
+                        if month_str and month_str != 'all':
+                            month = int(month_str)
+                            if 1 <= month <= 12:
+                                num_days_in_month = calendar.monthrange(year, month)[1]
+                                if week_str and week_str != 'all':
+                                    week = int(week_str)
+                                    # Simple week definition: week 1 = days 1-7, week 2 = days 8-14, etc.
+                                    start_day_of_week = (week - 1) * 7 + 1
+                                    end_day_of_week = week * 7
+                                    if start_day_of_week <= num_days_in_month:
+                                        from_date_obj = date(year, month, start_day_of_week)
+                                        to_date_obj = date(year, month, min(end_day_of_week, num_days_in_month))
+                                    else:
+                                        app.logger.warning(f"Invalid week '{week_str}' for {year}-{month}. Defaulting to whole month.")
+                                        from_date_obj = date(year, month, 1)
+                                        to_date_obj = date(year, month, num_days_in_month)
+                                else: # Year and Month selected, all weeks
+                                    from_date_obj = date(year, month, 1)
+                                    to_date_obj = date(year, month, num_days_in_month)
+                            else:
+                                app.logger.warning(f"Invalid month value: {month_str}. Defaulting to whole year {year}.")
+                                from_date_obj = date(year, 1, 1)
+                                to_date_obj = date(year, 12, 31)
+                        else: # Year selected, all months
+                            from_date_obj = date(year, 1, 1)
+                            to_date_obj = date(year, 12, 31)
+                    except ValueError:
+                        app.logger.warning(f"Invalid year/month/week format: Y='{year_str}', M='{month_str}', W='{week_str}'. No YMW filter applied.")
+            
+            elif time_range: # Handles predefined ranges
+                if time_range == '12m':
+                    from_date_obj = today - timedelta(days=365)
+                    to_date_obj = today
+                elif time_range == '6m':
+                    from_date_obj = today - timedelta(days=180)
+                    to_date_obj = today
+                elif time_range == '3m':
+                    from_date_obj = today - timedelta(days=90)
+                    to_date_obj = today
+                elif time_range == '1m':
+                    from_date_obj = today - timedelta(days=30)
+                    to_date_obj = today
+                elif time_range == 'all':
+                    from_date_obj = None
+                    to_date_obj = None # No date filtering for 'all'
+                else:
+                    app.logger.warning(f"Unknown time_range: {time_range}. Defaulting to 'Last 12 Months'.")
+                    from_date_obj = today - timedelta(days=365)
+                    to_date_obj = today
+            else: # Default if no filter_type and no range (e.g. initial load or unexpected params)
+                app.logger.info("No specific date filter parameters, defaulting to 'Last 12 Months'.")
+                from_date_obj = today - timedelta(days=365)
+                to_date_obj = today
+
+            # Apply date filters to the company-filtered query
+            # capa_issue_query is already company-filtered at this point.
+            query_after_date_filter = capa_issue_query
+            if from_date_obj:
+                query_after_date_filter = query_after_date_filter.filter(CapaIssue.issue_date >= from_date_obj)
+            # For 'all' time_range, to_date_obj will be None, so this condition won't apply, which is correct.
+            # For other ranges, to_date_obj is set to 'today'.
+            # For custom range, to_date_obj is the selected end date.
+            if to_date_obj:
+                query_after_date_filter = query_after_date_filter.filter(CapaIssue.issue_date <= to_date_obj)
 
             # --- Status Distribution ---
-            status_distribution = (
-                db.session.query(CapaIssue.status,
-                                 db.func.count(CapaIssue.status))
-                .filter(CapaIssue.issue_date >= from_date)
-                .group_by(CapaIssue.status)
-                .order_by(db.func.count(CapaIssue.status).desc())
-                .all()
-            )
+            status_query_aggregated = query_after_date_filter.with_entities(CapaIssue.status, db.func.count(CapaIssue.status)) \
+                                               .group_by(CapaIssue.status) \
+                                               .order_by(db.func.count(CapaIssue.status).desc())
+        
+            status_distribution = status_query_aggregated.all()
             status_labels = [row[0] for row in status_distribution]
             status_values = [row[1] for row in status_distribution]
             print(f"Status Distribution: {status_distribution}")
 
             # --- Top Customers ---
-            top_customers = (
-                db.session.query(CapaIssue.customer_name,
-                                 db.func.count(CapaIssue.customer_name))
-                .filter(CapaIssue.issue_date >= from_date)
-                .group_by(CapaIssue.customer_name)
-                .order_by(db.func.count(CapaIssue.customer_name).desc())
-                .limit(5)
-                .all()
-            )
+            top_customers_query = query_after_date_filter.with_entities(CapaIssue.customer_name, db.func.count(CapaIssue.customer_name))
+            top_customers = top_customers_query.group_by(CapaIssue.customer_name).order_by(db.func.count(CapaIssue.customer_name).desc()).limit(5).all()
             customer_labels = [row[0] for row in top_customers]
             customer_values = [row[1] for row in top_customers]
             print(f"Top Customers: {top_customers}")
 
             # --- Area Distribution ---
-            area_distribution = (
-                db.session.query(CapaIssue.item_involved,
-                                 db.func.count(CapaIssue.item_involved))
-                .filter(CapaIssue.issue_date >= from_date)
-                .group_by(CapaIssue.item_involved)
-                .order_by(db.func.count(CapaIssue.item_involved).desc())
-                .limit(5)
-                .all()
-            )
+            area_distribution_query = query_after_date_filter.with_entities(CapaIssue.item_involved, db.func.count(CapaIssue.item_involved))
+            area_distribution = area_distribution_query.group_by(CapaIssue.item_involved).order_by(db.func.count(CapaIssue.item_involved).desc()).limit(5).all()
             area_labels = [row[0] for row in area_distribution]
             area_values = [row[1] for row in area_distribution]
             print(f"Area Distribution: {area_distribution}")
 
             # --- Repeated Issues (by description/count) ---
-            repeated_issues = (
-                db.session.query(CapaIssue.issue_description,
-                                 db.func.count(CapaIssue.issue_description))
-                .filter(CapaIssue.issue_date >= from_date)
-                .group_by(CapaIssue.issue_description)
-                .having(db.func.count(CapaIssue.issue_description) > 1)
-                .order_by(db.func.count(CapaIssue.issue_description).desc())
-                .limit(5)
-                .all()
-            )
+            repeated_issues_query = query_after_date_filter.with_entities(CapaIssue.issue_description, db.func.count(CapaIssue.issue_description))
+            repeated_issues = repeated_issues_query.group_by(CapaIssue.issue_description).having(db.func.count(CapaIssue.issue_description) > 1).order_by(db.func.count(CapaIssue.issue_description).desc()).limit(5).all()
             repeated_issues_labels = [row[0] for row in repeated_issues]
             repeated_issues_values = [row[1] for row in repeated_issues]
             print(f"Repeated Issues: {repeated_issues}")
 
             # --- Top Machines with Most Issues ---
-            top_machines = (
-                db.session.query(CapaIssue.machine_name,
-                                 db.func.count(CapaIssue.machine_name))
-                .filter(CapaIssue.issue_date >= from_date)
-                .group_by(CapaIssue.machine_name)
-                .order_by(db.func.count(CapaIssue.machine_name).desc())
-                .limit(5)
-                .all()
-            )
+            top_machines_query = query_after_date_filter.with_entities(CapaIssue.machine_name, db.func.count(CapaIssue.machine_name))
+            top_machines = top_machines_query.group_by(CapaIssue.machine_name).order_by(db.func.count(CapaIssue.machine_name).desc()).limit(5).all()
             top_machines_labels = [row[0] for row in top_machines]
             top_machines_values = [row[1] for row in top_machines]
             print(f"Top Machines: {top_machines}")
 
             # --- Issue Trends Over Time (monthly) ---
-            issue_trends = (
-                db.session.query(db.func.date_format(
-                    CapaIssue.issue_date, '%Y-%m'), db.func.count(CapaIssue.capa_id))
-                .filter(CapaIssue.issue_date >= from_date)
-                .group_by(db.func.date_format(CapaIssue.issue_date, '%Y-%m'))
-                .order_by(db.func.date_format(CapaIssue.issue_date, '%Y-%m'))
-                .all()
-            )
+            issue_trends_query = query_after_date_filter.with_entities(db.func.date_format(CapaIssue.issue_date, '%Y-%m'), db.func.count(CapaIssue.capa_id))
+            issue_trends = issue_trends_query.group_by(db.func.date_format(CapaIssue.issue_date, '%Y-%m')).order_by(db.func.date_format(CapaIssue.issue_date, '%Y-%m')).all()
             issue_trends_labels = [row[0] for row in issue_trends]
             issue_trends_values = [row[1] for row in issue_trends]
             print(f"Issue Trends: {issue_trends}")
@@ -144,27 +529,86 @@ def register_routes(app):
             }), 500
 
     @app.route('/')
+    @login_required
     def index():
-        issues = CapaIssue.query.order_by(
-            CapaIssue.submission_timestamp.desc()).all()
+        s_company_id = session.get('selected_company_id')
+        query = CapaIssue.query
+
+        if current_user.role == 'super_admin' and s_company_id == 'all':
+            # Super admin viewing all companies, no company filter
+            pass
+        elif s_company_id is not None and s_company_id != 'all':
+            try:
+                company_id_int = int(s_company_id)
+                query = query.filter(CapaIssue.company_id == company_id_int)
+            except ValueError:
+                flash("Invalid company selection in session. Displaying no issues.", "danger")
+                app.logger.error(f"Invalid company_id '{s_company_id}' in session for user {current_user.username}.")
+                query = query.filter(CapaIssue.company_id == -1) # Effectively no results
+        elif current_user.role != 'super_admin' and s_company_id is None:
+            # Regular user with no company_id in session (should be set at login)
+            flash("Your company context is not set. Please re-login or contact support.", "warning")
+            app.logger.warning(f"User {current_user.username} (role: {current_user.role}) has no selected_company_id in session.")
+            query = query.filter(CapaIssue.company_id == -1) # Effectively no results
+        elif current_user.role == 'super_admin' and s_company_id is None:
+            # Super admin with no company_id in session (should be 'all' or a specific ID)
+            flash("Company context not fully initialized for admin. Defaulting to all companies view. Please re-select if needed.", "info")
+            app.logger.warning(f"Super admin {current_user.username} has no selected_company_id in session. Defaulting to all.")
+            # No filter, effectively 'all'
+            pass 
+        else:
+            # Fallback for any other unexpected state
+            app.logger.error(f"Unexpected company session state for user {current_user.username}, role {current_user.role}, session company ID {s_company_id}. Displaying no issues.")
+            query = query.filter(CapaIssue.company_id == -1) # Effectively no results
+
+        issues = query.order_by(CapaIssue.submission_timestamp.desc()).all()
         return render_template('index.html', issues=issues)
 
     @app.route('/api/machine_names')
+    @login_required
     def api_machine_names():
-        try:
-            # Query for distinct, non-null, non-empty machine names from AIKnowledgeBase, ordered alphabetically
-            machine_names_query = db.session.query(distinct(AIKnowledgeBase.machine_name)) \
-                .filter(AIKnowledgeBase.machine_name.isnot(None), AIKnowledgeBase.machine_name != '') \
-                .order_by(AIKnowledgeBase.machine_name).all()
+        s_company_id = session.get('selected_company_id')
+        query = db.session.query(distinct(CapaIssue.machine_name)).filter(CapaIssue.machine_name.isnot(None), CapaIssue.machine_name != '')
 
-            # Extract the names from the query result (list of tuples)
-            machine_names = [name[0] for name in machine_names_query]
+        if current_user.role == 'super_admin' and s_company_id == 'all':
+            # Super admin viewing all companies, no additional company filter needed on query
+            pass
+        elif s_company_id is not None and s_company_id != 'all':
+            try:
+                company_id_int = int(s_company_id)
+                query = query.filter(CapaIssue.company_id == company_id_int)
+            except ValueError:
+                app.logger.error(f"Invalid company_id '{s_company_id}' in session for api_machine_names for user {current_user.username}.")
+                flash('Invalid company selection for machine names.', 'danger') # User-facing message
+                return jsonify([]) # Return empty list on error
+        elif current_user.role != 'super_admin': # Regular user
+            if current_user.company_id:
+                query = query.filter(CapaIssue.company_id == current_user.company_id)
+            else:
+                app.logger.warning(f"User {current_user.username} (role: {current_user.role}) has no company_id for api_machine_names.")
+                flash('Your user profile is not associated with a company.', 'warning')
+                return jsonify([])
+        elif current_user.role == 'super_admin' and s_company_id is None:
+            # Super admin with no company_id in session (should be 'all' or a specific ID after login)
+            # This case implies an issue with session initialization, but we'll default to 'all' for safety.
+            app.logger.warning(f"Super admin {current_user.username} has no selected_company_id in session for api_machine_names. Defaulting to all.")
+            pass # No filter, effectively 'all'
+        else:
+            # Fallback for any other unexpected state or if a regular user somehow has s_company_id == 'all'
+            app.logger.error(f"Unexpected company session state for api_machine_names user {current_user.username}, role {current_user.role}, session company ID {s_company_id}.")
+            flash('Could not determine company context for machine names.', 'danger')
+            return jsonify([])
+
+        try:
+            machine_names_result = query.order_by(CapaIssue.machine_name).all()
+            machine_names = [item[0] for item in machine_names_result if item[0]] # Ensure name is not None/empty before adding
             return jsonify(machine_names)
         except Exception as e:
-            app.logger.error(f"Error fetching machine names: {e}")
-            return jsonify({'error': 'Could not fetch machine names'}), 500
+            app.logger.error(f"Error executing query for machine names: {e}")
+            return jsonify({'error': 'Could not fetch machine names due to a server error.'}), 500
 
     @app.route('/gemba/<int:capa_id>', methods=['GET', 'POST'])
+    @login_required
     def gemba_investigation(capa_id):
         # Get the CAPA issue
         issue = CapaIssue.query.get_or_404(capa_id)
@@ -239,6 +683,7 @@ def register_routes(app):
         return render_template('gemba_investigation.html', issue=issue)
 
     @app.route('/new', methods=['GET', 'POST'])
+    @login_required
     def new_capa():
         if request.method == 'POST':
             customer_name = request.form.get('customer_name')
@@ -308,6 +753,29 @@ def register_routes(app):
                                     f"Error removing photo {sf_path} during type error cleanup: {e_remove_cleanup}")
                     return render_template('new_capa.html')
 
+            # Determine company_id for the new CAPA
+            company_id_to_assign = None
+            if current_user.role == 'super_admin':
+                s_company_id = session.get('selected_company_id')
+                if not s_company_id or s_company_id == 'all':
+                    flash('Super admins must select a specific company from the dropdown before creating a new CAPA.', 'danger')
+                    return redirect(url_for('new_capa')) # Or perhaps url_for('index')
+                try:
+                    company_id_to_assign = int(s_company_id)
+                    # Optional: Verify company_id_to_assign exists in Company table
+                    company_exists = Company.query.get(company_id_to_assign)
+                    if not company_exists:
+                        flash(f'Selected company (ID: {company_id_to_assign}) does not exist. Please select a valid company.', 'danger')
+                        return redirect(url_for('new_capa'))
+                except ValueError:
+                    flash('Invalid company ID selected in session. Please re-select a company.', 'danger')
+                    return redirect(url_for('new_capa'))
+            else: # Regular user
+                if not current_user.company_id:
+                    flash('Your user profile is not associated with a company. Cannot create CAPA. Please contact an administrator.', 'danger')
+                    return redirect(url_for('index')) # Or a more appropriate page
+                company_id_to_assign = current_user.company_id
+
             # Create new CAPA Issue (without photo paths initially)
             new_issue = CapaIssue(
                 customer_name=customer_name,
@@ -316,7 +784,8 @@ def register_routes(app):
                 issue_description=issue_description,
                 machine_name=machine_name,
                 batch_number=batch_number,
-                status='Open'
+                status='Open',
+                company_id=company_id_to_assign
             )
 
             try:
@@ -366,6 +835,7 @@ def register_routes(app):
         return render_template('new_capa.html')
 
     @app.route('/view/<int:capa_id>')
+    @login_required
     def view_capa(capa_id):
         issue = CapaIssue.query.options(
             db.joinedload(CapaIssue.root_cause),  # Eager load related data
@@ -375,6 +845,7 @@ def register_routes(app):
         return render_template('view_capa.html', issue=issue)
 
     @app.route('/edit_rca/<int:capa_id>', methods=['POST'])
+    @login_required
     def edit_rca(capa_id):
         issue = CapaIssue.query.options(db.joinedload(
             CapaIssue.root_cause)).get_or_404(capa_id)
@@ -464,11 +935,13 @@ def register_routes(app):
             return redirect(url_for('view_capa', capa_id=capa_id))
 
     @app.route('/uploads/<filename>')
+    @login_required
     def uploaded_file(filename):
         # Route to serve uploaded files (needed to display images in templates)
         return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
     @app.route('/edit_action_plan/<int:capa_id>', methods=['POST'])
+    @login_required
     def edit_action_plan(capa_id):
         issue = CapaIssue.query.options(db.joinedload(
             CapaIssue.action_plan)).get_or_404(capa_id)
@@ -634,6 +1107,7 @@ def register_routes(app):
             return redirect(url_for('view_capa', capa_id=capa_id))
 
     @app.route('/submit_evidence/<int:capa_id>', methods=['POST'])
+    @login_required
     def submit_evidence(capa_id):
         issue = CapaIssue.query.get_or_404(capa_id)
 
@@ -733,6 +1207,7 @@ def register_routes(app):
         return redirect(url_for('view_capa', capa_id=capa_id) + '#pengajuan-bukti')
 
     @app.route('/edit_evidence/<int:capa_id>', methods=['POST'])
+    @login_required
     def edit_evidence(capa_id):
         issue = CapaIssue.query.get_or_404(capa_id)
 
@@ -798,6 +1273,7 @@ def register_routes(app):
         return redirect(url_for('view_capa', capa_id=capa_id) + '#pengajuan-bukti')
 
     @app.route('/close_capa/<int:capa_id>', methods=['POST'])
+    @login_required
     def close_capa(capa_id):
         issue = CapaIssue.query.get_or_404(capa_id)
 
@@ -809,7 +1285,6 @@ def register_routes(app):
         if issue.action_plan and issue.action_plan.user_adjusted_actions_json:
             action_plan_data = json.loads(
                 issue.action_plan.user_adjusted_actions_json)
-            temp_actions = action_plan_data.get('temp_actions', [])
             # Removed the logic that automatically flags all actions as completed on close.
             # The 'completed' status should now only be set when evidence is submitted
             # or potentially through manual edits if implemented elsewhere.
@@ -839,6 +1314,7 @@ def register_routes(app):
         return redirect(url_for('view_capa', capa_id=capa_id))
 
     @app.route('/report/<int:capa_id>/pdf')
+    @login_required
     def generate_pdf_report(capa_id):
         issue = CapaIssue.query.options(
             db.joinedload(CapaIssue.gemba_investigation),
@@ -889,9 +1365,7 @@ def register_routes(app):
         )
 
         try:
-            # Import required modules
-            import pdfkit
-            from pathlib import Path
+            # Import required modules (pdfkit and Path are now imported at the top)
             # wkhtmltopdf is expected to be in system PATH. pdfkit will find it.
 
             # Options for the PDF

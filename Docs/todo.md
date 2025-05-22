@@ -8,7 +8,7 @@
 [x] Masukan batch 
 [x] Revise Status
 [x] Kecilkan photo hasil buktinya 
-[ ] Bedakan tiap pt dalam websitenya
+[x] Bedakan tiap pt dalam websitenya
 [x] Tambahkan informasi process (Machine/line) Routingnya done
 [x] Buat ainya bisa belajar dari history
 [x] Upgrade uinya jadi lebih bagus dari web dan juga hasil pdfnya
@@ -33,14 +33,14 @@
 [x] Animasi loading pada saat upload file 
 [x] Dashboard capa (repeted issue)
 [ ] show to user rekomendasi dari ainya 
-[ ] Foto di bagian initial issue bisa lebih dari satu 
-[ ]update waktu di pdf report
+[x] Foto di bagian initial issue bisa lebih dari satu 
+[x]update waktu di pdf report
 [ ]summary sebelum pengajuan bukti (need to be consern again) 
 [ ]auto save draft 
-[ ]fitur role:
+[x]fitur role:
     - Super role: Dsiplay all PT
     - User: Display only their own PT
-[ ] filter by weekending
+[x] filter by weekending
 [ ] AI baca by process
 [ ] Masuk ai knowledge based ketika status sudah evidence pending, gaperlu tunggu close (need to be consern again) 
 

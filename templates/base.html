@@ -18,7 +18,7 @@
     <title>{% block title %}SANSICO Asisten AI CAPA{% endblock %}</title>
   </head>
   <body>
-    <nav class="navbar navbar-expand-md navbar-dark fixed-top">
+    <nav class="navbar navbar-expand-md navbar-dark fixed-top py-2">
       <div class="container-fluid">
         <a class="navbar-brand" href="{{ url_for('index') }}">
           <img src="{{ url_for('static', filename='images/logo.png') }}" alt="SANSICO Logo" class="d-inline-block align-top">
@@ -40,13 +40,70 @@
             </li>
             <!-- Add other navigation links here if needed -->
           </ul>
-          <!-- Add login/logout links here later -->
+          <ul class="navbar-nav ms-auto mb-2 mb-md-0">
+            {% if current_user.is_authenticated %}
+    {# Company Selector for Super User #}
+    {% if current_user.role == 'super_admin' %}
+        <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="companySelectorDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-offset="0,10">
+                <i class="fas fa-building"></i> {{ selected_company_name | default('Select Company') }}
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end rounded-3" aria-labelledby="companySelectorDropdown" style="min-width: 250px;">
+                <li>
+                    <form action="{{ url_for('select_company') }}" method="POST" class="px-2 py-1 mb-0">
+                        <div class="mb-1">
+                            <label for="company_id_select" class="form-label visually-hidden">Select Company</label>
+                            <select name="company_id" id="company_id_select" class="form-select form-select-sm" onchange="this.form.submit()">
+                                <option value="all"{% if selected_company_id == 'all' or selected_company_id is none %} selected{% endif %}>All Companies</option>
+                                {% for company in available_companies %}
+                                    <option value="{{ company.id }}"{% if selected_company_id|string == company.id|string %} selected{% endif %}>{{ company.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </form>
+                </li>
+            </ul>
+        </li>
+    {% elif current_user.company %} {# Regular user with an assigned company #}
+        <li class="nav-item dropdown">
+            <a class="nav-link" href="#">
+                <i class="fas fa-building"></i> {{ selected_company_name }} {# Should be their own company name from context processor #}
+            </a>
+        </li>
+    {% else %} {# Regular user without an assigned company or super_user without company context (should be rare) #}
+         <li class="nav-item">
+            <span class="navbar-text me-3 text-secondary">
+                <i class="fas fa-building"></i> No Specific Company Context
+            </span>
+        </li>
+    {% endif %}
+
+    {# User Info and Logout #}
+    <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-offset="0,10">
+            <i class="fas fa-user"></i> {{ current_user.username }}
+        </a>
+        <ul class="dropdown-menu dropdown-menu-end rounded-3" aria-labelledby="userDropdown">
+            <li><span class="dropdown-item-text"><small>User Role: {{ current_user.role.replace('_', ' ')|title }}</small></span></li>
+            {% if current_user.company %}
+            <li><span class="dropdown-item-text"><small>Assigned: {{ current_user.company.name }}</small></span></li>
+            {% endif %}
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+        </ul>
+    </li>
+{% else %} {# Not Authenticated #}
+    <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('login') }}"><i class="fas fa-sign-in-alt"></i> Login</a>
+    </li>
+{% endif %}
+          </ul>
         </div>
       </div>
     </nav>
 
     <!-- Sticky Flash Messages Container -->
-    <div id="sticky-flash-container" class="sticky-top" style="top: 70px; z-index: 1020;">
+    <div id="sticky-flash-container" class="sticky-top" style="top: 78px; z-index: 1020;">
       {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
           {% for category, message in messages %}

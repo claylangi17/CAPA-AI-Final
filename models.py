@@ -1,6 +1,10 @@
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import json
+from werkzeug.security import generate_password_hash, check_password_hash
+from itsdangerous import URLSafeTimedSerializer
+from flask import current_app
+from flask_login import UserMixin
 
 db = SQLAlchemy()
 
@@ -23,8 +27,10 @@ class CapaIssue(db.Model):
     submission_timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     # e.g., 'Open', 'Gemba Pending', 'RCA Pending', 'Action Pending', 'Evidence Pending', 'Closed'
     status = db.Column(db.String(50), default='Open', nullable=False)
+    company_id = db.Column(db.Integer, db.ForeignKey('companies.id'), nullable=False)
 
     # Relationships
+    company = db.relationship('Company', backref=db.backref('capa_issues', lazy='dynamic'))
     gemba_investigation = db.relationship('GembaInvestigation', backref='capa_issue',
                                           uselist=False, cascade="all, delete-orphan")  # One-to-one
     root_cause = db.relationship('RootCause', backref='capa_issue',
@@ -177,7 +183,60 @@ class AIKnowledgeBase(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     # Flag to disable/enable knowledge entries
     is_active = db.Column(db.Boolean, default=True)
+    company_id = db.Column(db.Integer, db.ForeignKey('companies.id'), nullable=False)
 
     # Relationship to CapaIssue
+    company = db.relationship('Company', backref=db.backref('ai_knowledge_base_entries', lazy='dynamic'))
     capa_issue = db.relationship('CapaIssue', backref=db.backref(
         'knowledge_entries', lazy='dynamic'))
+
+
+class Company(db.Model):
+    __tablename__ = 'companies'
+    id = db.Column(db.Integer, primary_key=True)
+    company_code = db.Column(db.String(50), unique=True, nullable=False)
+    name = db.Column(db.String(255), nullable=False)
+
+    users = db.relationship('User', backref='company', lazy='dynamic')
+
+    def __repr__(self):
+        return f'<Company {self.name} ({self.company_code})>'
+
+
+class User(UserMixin, db.Model):
+    __tablename__ = 'users'
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password_hash = db.Column(db.String(256), nullable=False)  # Increased length for stronger hashes
+    role = db.Column(db.String(50), nullable=False, default='user') # Roles like 'super_admin', 'admin', 'user'
+    company_id = db.Column(db.Integer, db.ForeignKey('companies.id'), nullable=True) # Link to company
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
+    def get_reset_token(self, expires_sec=1800):
+        s = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+        return s.dumps({'user_id': self.id})
+
+    @staticmethod
+    def verify_reset_token(token, expires_sec=1800):
+        s = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+        try:
+            user_id = s.loads(token, max_age=expires_sec)['user_id']
+        except:
+            return None
+        return User.query.get(user_id)
+
+    def __repr__(self):
+        return f'<User {self.username} ({self.role})>'
+
+    # Add a property to easily check if user is super_admin
+    @property
+    def is_super_admin(self):
+        return self.role == 'super_admin'

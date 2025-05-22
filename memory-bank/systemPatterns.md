@@ -7,7 +7,16 @@
 *   **Architecture Overview:**
     *   Standard **Flask Web Application** structure.
     *   Follows a **Model-View-Controller (MVC)**-like pattern, although not strictly enforced:
-        *   **Models:** Defined in `models.py` using Flask-SQLAlchemy (handles data and database interaction).
+        *   **Models:** Defined in `models.py` using Flask-SQLAlchemy. Key models include:
+            *   `CapaIssue`: Core entity for tracking corrective and preventive actions.
+            *   `User`: Manages user accounts and authentication.
+            *   `AIKnowledgeBase`: Stores learned data from closed CAPAs for AI recommendations.
+            *   `Company`: Manages company information for multi-company support.
+            *   Supporting models: `RootCause`, `ActionPlan`, `Evidence`, `GembaInvestigation`.
+            *   **Multi-Company Enhancements:**
+                *   The `Company` model (`id`, `name`, `code`) stores company details.
+                *   The `User` model is extended with `role` (e.g., 'super_admin', 'user', `nullable=False`, default 'user') and a `company_id` (ForeignKey to `Company.id`, `nullable=True`) to associate users with companies and define their access levels.
+                *   `CapaIssue`, `AIKnowledgeBase`, and other relevant data models are extended with `company_id` (ForeignKey to `Company.id`, `nullable=False`) to ensure all records are associated with a company and to segregate data by company.
         *   **Views:** Handled by Jinja2 templates in the `templates/` directory (renders HTML).
         *   **Controllers:** Logic resides within route functions defined in `routes.py`.
     *   Configuration is centralized in `config.py` and utilizes environment variables (`.env`) via `python-dotenv`.
@@ -24,6 +33,10 @@
     *   PDF Generation: **WeasyPrint** (for creating PDF reports from HTML).
     *   Configuration Management: **`.env` file** with `python-dotenv`.
     *   File Uploads: Handled directly within routes, saving to the `uploads/` folder.
+    *   **Multi-Company Architecture:** Decision to implement multi-company support by:
+        *   Introducing a `Company` model (`id`, `name`, `code`).
+        *   Adding `role` (`nullable=False`, default 'user') and `company_id` (`nullable=True`) to the `User` model for role-based access control (RBAC) and company association.
+        *   Adding `company_id` (now `nullable=False`) to data-bearing models like `CapaIssue` and `AIKnowledgeBase` to enforce company association and enable data partitioning/filtering per company.
 
 *   **Design Patterns:**
     *   **Repository Pattern (Implicit):** SQLAlchemy models act somewhat like repositories for database interaction.
@@ -52,6 +65,7 @@
 
 *   **Data Model - AIKnowledgeBase:**
     *   Stores a single, consolidated entry per `capa_id`.
+    *   Associated with a specific company via `company_id` (ForeignKey to `Company.id`).
     *   This entry is created or updated when the CAPA is closed.
     *   Contains the final user-adjusted data: `adjusted_whys_json`, `adjusted_temporary_actions_json`, and `adjusted_preventive_actions_json`.
     *   The `source_type` column has been removed.
@@ -81,5 +95,6 @@
     *   **Evidence Submission:** `submit_evidence` route saves `Evidence` -> Updates `ActionPlan` item status -> `edit_evidence` allows modification.
     *   **CAPA Closure:** `close_capa` route updates `CapaIssue` status -> Calls `store_knowledge_on_capa_close` (`ai_learning.py`) to save the final consolidated knowledge.
     *   **Report Generation:** `generate_pdf_report` route renders `report_template.html` -> Uses WeasyPrint to create PDF.
+    *   **User Registration:** `register` route (`routes.py`) -> `RegistrationForm` populates company choices, filtering out 'Sansico Group (all company combine)' and 'Unassigned' -> Validates unique username/email and other fields -> Creates new `User` with selected `company_id` and default 'user' role -> Redirects to login.
 
 *(This document provides a technical blueprint of the system.)*

@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{# {% import "bootstrap5/form.html" as wtf %} #} {# Commented out due to version issues #}
+
+{% block title %}Register - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-6 col-lg-5">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h3 class="mb-0 text-center">Create Your Account</h3>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST" action="{{ url_for('register') }}" novalidate>
+                    {{ form.hidden_tag() }} {# CSRF token #}
+                    
+                    <!-- Username Field -->
+                    <div class="mb-3">
+                        {{ form.username.label(class_="form-label") }}
+                        {{ form.username(class_="form-control" + (" is-invalid" if form.username.errors else ""), placeholder="Enter your username") }}
+                        {% if form.username.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.username.errors %}
+                                    <span>{{ error }}</span><br>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Email Field -->
+                    <div class="mb-3">
+                        {{ form.email.label(class_="form-label") }}
+                        {{ form.email(class_="form-control" + (" is-invalid" if form.email.errors else ""), placeholder="Enter your email address") }}
+                        {% if form.email.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.email.errors %}
+                                    <span>{{ error }}</span><br>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Company Field -->
+                    <div class="mb-3">
+                        {{ form.company_id.label(class_="form-label") }}
+                        {{ form.company_id(class_="form-select" + (" is-invalid" if form.company_id.errors else "")) }}
+                        {% if form.company_id.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.company_id.errors %}
+                                    <span>{{ error }}</span><br>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Password Field -->
+                    <div class="mb-3">
+                        {{ form.password.label(class_="form-label") }}
+                        {{ form.password(class_="form-control" + (" is-invalid" if form.password.errors else ""), placeholder="Create a password") }}
+                        {% if form.password.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.password.errors %}
+                                    <span>{{ error }}</span><br>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Confirm Password Field -->
+                    <div class="mb-3">
+                        {{ form.confirm_password.label(class_="form-label") }}
+                        {{ form.confirm_password(class_="form-control" + (" is-invalid" if form.confirm_password.errors else ""), placeholder="Confirm your password") }}
+                        {% if form.confirm_password.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.confirm_password.errors %}
+                                    <span>{{ error }}</span><br>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Submit Button -->
+                    <div class="d-grid gap-2">
+                        {{ form.submit(class_="btn btn-primary btn-block") }}
+                    </div>
+                </form>
+                <hr>
+                <div class="text-center">
+                    <p class="mb-0">Already have an account? <a href="{{ url_for('login') }}">Log In</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
