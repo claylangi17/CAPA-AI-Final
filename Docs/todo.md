@@ -43,6 +43,7 @@
 [x] filter by weekending
 [ ] AI baca by process
 [ ] Masuk ai knowledge based ketika status sudah evidence pending, gaperlu tunggu close (need to be consern again) 
+[x] add to main Branch
 
 
 Flow:
