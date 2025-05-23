@@ -264,10 +264,21 @@ def register_routes(app):
                       recipients=[user.email])
         msg.html = render_template('reset_email.html', user=user, token=token)
         try:
+            # Print mail configuration for debugging
+            print(f"Mail Server: {current_app.config['MAIL_SERVER']}")
+            print(f"Mail Port: {current_app.config['MAIL_PORT']}")
+            print(f"Mail Use TLS: {current_app.config['MAIL_USE_TLS']}")
+            print(f"Mail Username: {current_app.config['MAIL_USERNAME']}")
+            print(f"Mail Default Sender: {current_app.config['MAIL_DEFAULT_SENDER']}")
+            
+            # Try to send the email
             current_app.extensions['mail'].send(msg)
             return True
         except Exception as e:
             current_app.logger.error(f"Error sending password reset email: {e}")
+            # More detailed error printing
+            import traceback
+            traceback.print_exc()
             return False
 
     @app.route('/request_reset_token', methods=['GET', 'POST'])

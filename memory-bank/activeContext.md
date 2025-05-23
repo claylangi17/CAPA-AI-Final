@@ -18,10 +18,16 @@
             - Fixed indentation errors introduced during the modification of filter logic.
     - **New Feature: Forgot Password by Email**
         - User requested a 'Forgot Password' feature.
-        - Began implementation by adding `Flask-Mail` to `requirements.txt`, adding mail configuration to `app.py` (to be sourced from `.env`), and adding token generation/verification methods (`get_reset_token`, `verify_reset_token`) to the `User` model in `models.py`.
-        - Fixed two critical errors in token generation: 
-            1. Updated the `URLSafeTimedSerializer` implementation in the `User` model to correctly handle token generation without passing the expiration time to the constructor, which was causing a TypeError.
-            2. Removed the `.decode('utf-8')` call since the `dumps` method in the current version of `itsdangerous` already returns a string, not bytes.
+        - Implementation includes:
+            1. Adding `Flask-Mail` to `requirements.txt` and configuring mail settings in `app.py`
+            2. Adding token generation/verification methods to the `User` model in `models.py`
+            3. Creating routes: `/request_reset_token` and `/reset_token/<token>` in `routes.py`
+            4. Building templates: `request_reset_token.html`, `reset_token.html`, and `reset_email.html`
+        - **Recent Fixes (Current Session):**
+            1. Fixed template imports in password reset templates: Changed from `bootstrap5/form.html` to `bootstrap/form.html` to match the installed `bootstrap-flask` package
+            2. Updated Gmail authentication: Added App Password in `.env` for secure SMTP authentication
+            3. Added `python-dotenv` integration to properly load environment variables from `.env` file
+            4. Formatted App Password correctly (without spaces) to avoid authentication issues
     *   **Dashboard Bug Fix:** User reported discrepancy in 'Status Distribution' chart on Dashboard Analytic page (showed 2 'Action Pending' vs 1 'Closed' CAPA for the selected company on main dashboard). Investigated `dashboard_data` route and found that the company filter was being lost during status calculation due to query re-initialization. Applied a fix to ensure company filter persists for status distribution.
     *   **Dashboard Verification:** Verified backend logic for 'Repeated Issues' and 'Issue Trends' charts in `dashboard_data`. Confirmed they correctly handle and display data for a single CAPA scenario within the selected company context.
 

@@ -4,6 +4,10 @@ from flask_mail import Mail, Message
 from flask_login import LoginManager # Added import for LoginManager
 from weasyprint import HTML  # Import WeasyPrint for PDF generation
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 from config import SECRET_KEY, SQLALCHEMY_DATABASE_URI, SQLALCHEMY_TRACK_MODIFICATIONS, UPLOAD_FOLDER, MAX_CONTENT_LENGTH
 from models import db, User
@@ -14,14 +18,15 @@ from utils import from_json_filter, nl2br_filter
 # Initialize the Flask application
 app = Flask(__name__)
 
-# Mail configuration
-app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER')
-app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 587))
-app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'true').lower() in ['true', '1', 't']
-app.config['MAIL_USE_SSL'] = os.environ.get('MAIL_USE_SSL', 'false').lower() in ['true', '1', 't']
-app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
-app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
-app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER')
+# Mail configuration (hardcoded for testing)
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USE_SSL'] = False
+app.config['MAIL_USERNAME'] = 'printecci@gmail.com'
+app.config['MAIL_PASSWORD'] = 'tqod dylm vrir jduh'  # App Password with spaces as Google provides it
+app.config['MAIL_DEFAULT_SENDER'] = 'printecci@gmail.com'
+app.config['MAIL_DEBUG'] = True  # Enable mail debugging
 
 mail = Mail() # Initialize without app
 
