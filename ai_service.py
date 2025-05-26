@@ -83,33 +83,29 @@ def _parse_action_list(json_str, capa_id_str, action_type_name):
 
 
 def trigger_rca_analysis(capa_id):
-    """Fetches issue details, gemba findings, calls Gemini for 5 Why analysis, and stores the result."""
+    """Handles the entire RCA process for a CAPA issue: fetches data, gets AI suggestion, stores result."""
     from models import CapaIssue, GembaInvestigation  # Import here to avoid circular imports
 
     if not GOOGLE_API_KEY:
-        print(
-            f"Skipping AI RCA for CAPA ID {capa_id}: API Key not configured.")
-        return  # Don't proceed if API key is missing
-
-    # Get issue with gemba investigation data
-    issue = CapaIssue.query.options(db.joinedload(
-        CapaIssue.gemba_investigation)).get(capa_id)
-    if not issue:
-        print(
-            f"Error: Could not find CAPA Issue with ID {capa_id} for AI analysis.")
+        print(f"Skipping AI RCA for CAPA ID {capa_id}: API Key not configured.")
         return
 
-    # Check if Gemba investigation exists
-    gemba_data = issue.gemba_investigation
-    if not gemba_data:
-        print(
-            f"Warning: No Gemba investigation found for CAPA ID {capa_id}. This is unusual.")
+    # Get issue data and relevant AI knowledge for context
+    issue = CapaIssue.query.get(capa_id)
+    if not issue:
+        print(f"Error: CAPA ID {capa_id} not found")
+        return
 
-    # Increase the limit of retrieved knowledge to use more examples from the database
+    gemba = GembaInvestigation.query.filter_by(capa_id=capa_id).first()
+    if not gemba:
+        print(f"Error: Gemba investigation for CAPA ID {capa_id} not found")
+        return
+
+    # Get relevant knowledge for this case
     relevant_knowledge = get_relevant_rca_knowledge(
         current_capa_issue_description=issue.issue_description,
         current_capa_machine_name=issue.machine_name,
-        limit=5  # Meningkatkan jumlah maksimum referensi yang diambil
+        limit=5  # Get more references for better learning examples
     )
 
     # --- Prepare Prompt in Bahasa Indonesia ---
@@ -126,7 +122,7 @@ def trigger_rca_analysis(capa_id):
     Deskripsi Masalah: {issue.issue_description}
 
     Hasil Investigasi Gemba (Data dari Lapangan):
-    {gemba_data.findings if gemba_data else 'Tidak ada data gemba'}
+    {gemba.findings if gemba else 'Tidak ada data gemba'}
 
     Contoh Format Output JSON:
     {{
@@ -340,15 +336,56 @@ def trigger_rca_analysis(capa_id):
                 ai_suggestion_str = '{"error": "Failed to parse AI response", "raw_response": null}'
             # Consider flashing a specific warning to the user later
 
-        # Store the result in the database
+        # Prepare the learning examples in a structured format for storage
+        learning_examples = []
+        for i, knowledge_item in enumerate(relevant_knowledge, 1):
+            try:
+                adjusted_whys_json_str = knowledge_item.get('adjusted_whys')
+                context_data_dict = knowledge_item.get('context', {})
+                source_capa_id_str = context_data_dict.get(
+                    'source_capa_id', 'N/A')
+                
+                if adjusted_whys_json_str and isinstance(adjusted_whys_json_str, str) and adjusted_whys_json_str.strip():
+                    whys_list = _parse_action_list(
+                        adjusted_whys_json_str, source_capa_id_str, "adjusted_whys_json")
+                    
+                    if not whys_list and adjusted_whys_json_str.strip():
+                        whys_list = [adjusted_whys_json_str.strip()]
+                    
+                    if whys_list:
+                        example = {
+                            "id": i,
+                            "capa_id": source_capa_id_str,
+                            "description": context_data_dict.get('issue_description', 'Tidak tersedia'),
+                            "machine": context_data_dict.get('machine_name', 'Tidak tersedia'),
+                            "whys": []
+                        }
+                        
+                        for idx, why_text in enumerate(whys_list):
+                            example["whys"].append(
+                                {"number": idx + 1, "text": why_text})
+                        
+                        learning_examples.append(example)
+            except Exception as e:
+                print(f"Error processing learning example {i}: {e}")
+                continue
+        
+        # Store result in database
         existing_rc = RootCause.query.filter_by(capa_id=capa_id).first()
+        learning_examples_json = json.dumps(
+            learning_examples, ensure_ascii=False)
+        
         if existing_rc:
+            # Update existing record
             existing_rc.ai_suggested_rc_json = ai_suggestion_str
             existing_rc.rc_submission_timestamp = datetime.utcnow()  # Update timestamp
+            existing_rc.learning_examples_json = learning_examples_json
         else:
+            # Create new record
             new_rc = RootCause(
                 capa_id=capa_id,
-                ai_suggested_rc_json=ai_suggestion_str
+                ai_suggested_rc_json=ai_suggestion_str,
+                learning_examples_json=learning_examples_json
             )
             db.session.add(new_rc)
 

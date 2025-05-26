@@ -74,7 +74,7 @@ trigger: always_on
 
     ## Core Workflows
 
-    ### Plan Mode
+    ### Chat Mode
     ```mermaid
     flowchart TD
         Start[Start] --> ReadFiles[Read Memory Bank]
@@ -88,7 +88,7 @@ trigger: always_on
         Strategy --> Present[Present Approach]
     ```
 
-    ### Act Mode
+    ### Write Mode
     ```mermaid
     flowchart TD
         Start[Start] --> Context[Check Memory Bank]

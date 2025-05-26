@@ -60,6 +60,8 @@ class RootCause(db.Model):
     ai_suggested_rc_json = db.Column(db.Text)
     # Store user's adjusted whys as JSON string to support variable number of whys
     user_adjusted_whys_json = db.Column(db.Text)
+    # Store the learning examples used by the AI for generating suggestions
+    learning_examples_json = db.Column(db.Text)
     # Keep original columns for backward compatibility
     user_adjusted_why1 = db.Column(db.Text)
     user_adjusted_why2 = db.Column(db.Text)
