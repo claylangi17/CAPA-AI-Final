@@ -45,6 +45,9 @@
 [ ] Masuk ai knowledge based ketika status sudah evidence pending, gaperlu tunggu close (need to be consern again) 
 [x] Create dev branch
 [x] add to main Branch
+[ ] Tambahkan 4M 1E
+[ ] Fitur Delete CAPA
+[ ] Hasil ainya buat tidak ada mengapa lagi 
 
 
 Flow:

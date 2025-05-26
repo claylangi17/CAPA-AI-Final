@@ -5,6 +5,12 @@
 **Key Sections:**
 
 *   **Current Work Focus**
+    - **New Feature: AI Learning Examples Dropdown**
+        - Implemented a transparency feature showing examples of historical CAPA data used by the AI to generate RCA suggestions.
+        - Added `learning_examples_json` field to the `RootCause` model and created migration script.
+        - Enhanced `trigger_rca_analysis()` to store structured learning examples data.
+        - Added UI dropdown below AI RCA suggestions with accordion display of learning examples.
+        - Fixed parameter error in `get_relevant_rca_knowledge()` function call that was causing runtime errors.
     - **Enhancing Dashboard Date Filters (Testing Phase):**
         - `dashboard.html`: 
             - UI for tiered date filters (Predefined, Year/Month/Week, Custom Range) and JS logic to send parameters to backend.
