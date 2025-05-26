@@ -8,6 +8,9 @@ from pathlib import Path
 # Third-Party Imports
 import pdfkit
 import pytz
+# Add these two lines for wkhtmltopdf configuration
+path_to_wkhtmltopdf = r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe'
+pdfkit_config = pdfkit.configuration(wkhtmltopdf=path_to_wkhtmltopdf)
 from flask import (
     current_app,
     flash,
@@ -1420,7 +1423,8 @@ def register_routes(app):
                 False,
                 options=options,
                 css=os.path.join('static', 'css', 'custom.css') if os.path.exists(
-                    os.path.join('static', 'css', 'custom.css')) else None
+                    os.path.join('static', 'css', 'custom.css')) else None,
+                configuration=pdfkit_config  # Pass the configuration here
             )
 
             # Create and return the response
