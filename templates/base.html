@@ -51,6 +51,7 @@
             <ul class="dropdown-menu dropdown-menu-end rounded-3" aria-labelledby="companySelectorDropdown" style="min-width: 250px;">
                 <li>
                     <form action="{{ url_for('select_company') }}" method="POST" class="px-2 py-1 mb-0">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div class="mb-1">
                             <label for="company_id_select" class="form-label visually-hidden">Select Company</label>
                             <select name="company_id" id="company_id_select" class="form-select form-select-sm" onchange="this.form.submit()">

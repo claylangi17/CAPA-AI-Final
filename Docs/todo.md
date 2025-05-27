@@ -51,6 +51,7 @@
 [x] Fitur liat password
 [x] Fitur register hanya bisa dipakai oleh master admin
 [X] Companynya ganti printec perkasa tanggerang dan Cikarang (bukan 1&2) - Ask Ignaz update db 
+[ ] Buat script untuk hapus database CAPA yang idnya dari 0 - 3 digit (dari semua table di database)
 
 Flow:
 masukin case (Batch, Jumlah reject) -> required untuk gemba (Foto, deskripsi real issue) -> RCA -> Action plan -> evidence
