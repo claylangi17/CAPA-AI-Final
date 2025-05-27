@@ -5,6 +5,14 @@
 **Key Sections:**
 
 *   **Current Work Focus**
+    *   **New Feature: Soft Delete for CAPA Issues**
+        - Implemented soft delete functionality for CAPA issues to allow marking items as deleted without permanent removal.
+        - **Model Changes (`models.py`):** Added `is_deleted` (Boolean, default `False`) and `deleted_at` (DateTime, nullable) fields to the `CapaIssue` model.
+        - **New Route (`routes.py`):** Created `/capa/<int:capa_id>/soft_delete` (POST) for `super_admin` users to mark a CAPA as deleted. This route updates `is_deleted` to `True` and sets `deleted_at`.
+        - **Route Modifications (`routes.py`):** Updated the `index` and `dashboard_data` routes to filter out CAPA issues where `is_deleted` is `True`, ensuring they are not displayed or included in analytics.
+    *   **New Feature: AI Learning Examples Dropdown**
+
+*   **Current Work Focus**
     - **New Feature: AI Learning Examples Dropdown**
         - Implemented a transparency feature showing examples of historical CAPA data used by the AI to generate RCA suggestions.
         - Added `learning_examples_json` field to the `RootCause` model and created migration script.
@@ -41,7 +49,9 @@
     *   **Dashboard Date Filter Backend (`routes.py`):**
         *   Implemented backend logic in `dashboard_data` to receive and process new date filter parameters (`filter_type`, `year`, `month`, `week`, `start_date`, `end_date`).
         *   Ensured date filters are applied correctly to the base query for all chart data aggregations.
-        *   Corrected Python indentation errors that arose during the implementation of the new filter logic.
+            *   Corrected Python indentation errors that arose during the implementation of the new filter logic.
+    *   **Soft Delete Implementation (`routes.py`):**
+        *   Modified `index` and `dashboard_data` routes to filter `CapaIssue` queries by `is_deleted == False`.
     *   **New Feature Initiation: Multi-Company Support**
         *   Received user request for multi-company functionality with role-based access (Super User vs. User) and data filtering, including a specific list of companies.
         *   Updated `projectbrief.md` and `productContext.md` to reflect this new major requirement.
@@ -97,6 +107,20 @@
         *   Enhanced logging in `cosine_similarity_rca` function.
         *   Added debug log for the calculated similarity score.
         *   Added debug log for invalid input cases, detailing input types.
+
+**Next Steps (Immediate):**
+
+*   **Soft Delete - Database Migration:**
+    *   Run `flask db migrate -m "Add soft delete fields to CapaIssue"`.
+    *   Run `flask db upgrade`.
+    *   Address potential `ModuleNotFoundError` with `update_schema.py` by verifying script content and virtual environment activation.
+*   **Soft Delete - Testing:**
+    *   Test the `/capa/<int:capa_id>/soft_delete` route functionality.
+    *   Verify that soft-deleted CAPAs are correctly filtered from the `index` page and `dashboard_data` aggregations.
+*   **Soft Delete - UI Updates:**
+    *   Implement a "Delete" button in the UI for CAPA issues (e.g., on `view_capa.html` or `index.html`).
+    *   Ensure the button triggers the soft delete route.
+    *   Add a confirmation dialog before soft deletion.
     *   **Debugging Attempt for Action Plan Search (`ai_learning.py`):**
         *   Modified conditional assignment for `current_issue_embedding` and replaced `cosine_similarity` with `cosine_similarity_rca` in `get_relevant_action_plan_knowledge`.
         *   This, along with subsequent robust NumPy array handling, resolved the "truth value of an array is ambiguous" error.

@@ -46,7 +46,7 @@
 [x] Create dev branch
 [x] add to main Branch
 [ ] Tambahkan 4M 1E (optional)
-[ ] Fitur Delete CAPA
+[x] Fitur Delete CAPA
 [X] Hasil ainya buat tidak ada mengapa lagi 
 [x] Fitur liat password
 [x] Fitur register hanya bisa dipakai oleh master admin

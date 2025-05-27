@@ -356,7 +356,7 @@ def register_routes(app):
     @login_required
     def dashboard_data():
         s_company_id = session.get('selected_company_id')
-        capa_issue_query = CapaIssue.query
+        capa_issue_query = CapaIssue.query.filter(CapaIssue.is_deleted == False)
         ai_kb_query = AIKnowledgeBase.query # Assuming you might want to filter this too
 
         if current_user.role == 'super_admin' and s_company_id == 'all':
@@ -546,7 +546,7 @@ def register_routes(app):
     @login_required
     def index():
         s_company_id = session.get('selected_company_id')
-        query = CapaIssue.query
+        query = CapaIssue.query.filter(CapaIssue.is_deleted == False)
 
         if current_user.role == 'super_admin' and s_company_id == 'all':
             # Super admin viewing all companies, no company filter
@@ -577,6 +577,20 @@ def register_routes(app):
 
         issues = query.order_by(CapaIssue.submission_timestamp.desc()).all()
         return render_template('index.html', issues=issues)
+
+
+    @app.route('/capa/<int:capa_id>/soft_delete', methods=['POST'])
+    @login_required
+    def soft_delete_capa(capa_id):
+        if current_user.role != 'super_admin':
+            flash('You do not have permission to perform this action.', 'danger')
+            return redirect(url_for('index'))
+        capa_to_delete = CapaIssue.query.get_or_404(capa_id)
+        capa_to_delete.is_deleted = True
+        capa_to_delete.deleted_at = datetime.utcnow()
+        db.session.commit()
+        flash('CAPA issue successfully soft-deleted.', 'success')
+        return redirect(url_for('index'))
 
     @app.route('/api/machine_names')
     @login_required
@@ -711,7 +725,7 @@ def register_routes(app):
             final_photo_filenames = []   # For filenames with capa_id prefix
             upload_dir = os.path.join(app.config['UPLOAD_FOLDER'])
             # Ensure upload directory exists
-            os.makedirs(upload_dir, exist_ok=True)
+            Path(upload_dir).mkdir(parents=True, exist_ok=True)
 
             # Basic validation for required text fields
             if not all([customer_name, item_involved, issue_date_str, issue_description]):
