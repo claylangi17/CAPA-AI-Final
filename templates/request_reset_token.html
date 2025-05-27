@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "bootstrap/form.html" import render_form %}
+
 
 {% block title %}{{ title }}{% endblock %}
 
@@ -12,7 +12,23 @@
                     <h4>{{ title }}</h4>
                 </div>
                 <div class="card-body">
-                    {{ render_form(form) }}
+                    <form method="POST" action="">
+                        {{ form.hidden_tag() }}
+                        <div class="mb-3">
+                            {{ form.email.label(class="form-label") }}
+                            {{ form.email(class="form-control" + (" is-invalid" if form.email.errors else ""), placeholder="Enter your email address") }}
+                            {% if form.email.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.email.errors %}
+                                        <span>{{ error }}</span><br>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="d-grid gap-2 mt-3">
+                            {{ form.submit(class="btn btn-primary") }}
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>

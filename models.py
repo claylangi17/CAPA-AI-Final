@@ -28,6 +28,8 @@ class CapaIssue(db.Model):
     # e.g., 'Open', 'Gemba Pending', 'RCA Pending', 'Action Pending', 'Evidence Pending', 'Closed'
     status = db.Column(db.String(50), default='Open', nullable=False)
     company_id = db.Column(db.Integer, db.ForeignKey('companies.id'), nullable=False)
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False)
+    deleted_at = db.Column(db.DateTime, nullable=True)
 
     # Relationships
     company = db.relationship('Company', backref=db.backref('capa_issues', lazy='dynamic'))

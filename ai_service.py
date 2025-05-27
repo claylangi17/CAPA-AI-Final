@@ -111,7 +111,7 @@ def trigger_rca_analysis(capa_id):
     # --- Prepare Prompt in Bahasa Indonesia ---
     prompt = f"""
     Analisis masalah pengemasan manufaktur berikut menggunakan teknik 5 Whys untuk menentukan akar masalah.
-    Berikan output dalam bentuk objek JSON dengan kunci "why1", "why2", "why3", "why4", dan "root_cause" (untuk why ke-5).
+    Berikan output dalam bentuk objek JSON dengan kunci "why1", "why2", "why3", "why4", dan "root_cause" (untuk why ke-5). Untuk setiap 'why', berikan pernyataan langsung mengenai penyebabnya, bukan dalam format tanya jawab atau mengulang pertanyaan 'mengapa'.
     PENTING: Berikan SEMUA TANGGAPAN dalam BAHASA INDONESIA.
 
     Detil Masalah:
@@ -124,13 +124,13 @@ def trigger_rca_analysis(capa_id):
     Hasil Investigasi Gemba (Data dari Lapangan):
     {gemba.findings if gemba else 'Tidak ada data gemba'}
 
-    Contoh Format Output JSON:
+    Contoh Format Output JSON (setiap 'why' adalah pernyataan langsung penyebabnya):
     {{
-      "why1": "Alasan tingkat pertama",
-      "why2": "Alasan tingkat kedua yang dibangun dari yang pertama",
-      "why3": "Alasan tingkat ketiga",
-      "why4": "Alasan tingkat keempat",
-      "root_cause": "Akar masalah yang mendasar"
+      "why1": "Pernyataan langsung penyebab pertama (contoh: Lem yang diaplikasikan terlalu tebal)",
+      "why2": "Pernyataan langsung penyebab kedua (contoh: Operator mengaplikasikan lem terlalu banyak karena tidak ada panduan standar)",
+      "why3": "Pernyataan langsung penyebab ketiga",
+      "why4": "Pernyataan langsung penyebab keempat",
+      "root_cause": "Pernyataan langsung akar masalah yang mendasar"
     }}
     """
 

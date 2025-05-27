@@ -51,6 +51,7 @@
             <ul class="dropdown-menu dropdown-menu-end rounded-3" aria-labelledby="companySelectorDropdown" style="min-width: 250px;">
                 <li>
                     <form action="{{ url_for('select_company') }}" method="POST" class="px-2 py-1 mb-0">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div class="mb-1">
                             <label for="company_id_select" class="form-label visually-hidden">Select Company</label>
                             <select name="company_id" id="company_id_select" class="form-select form-select-sm" onchange="this.form.submit()">
@@ -87,6 +88,9 @@
             <li><span class="dropdown-item-text"><small>User Role: {{ current_user.role.replace('_', ' ')|title }}</small></span></li>
             {% if current_user.company %}
             <li><span class="dropdown-item-text"><small>Assigned: {{ current_user.company.name }}</small></span></li>
+            {% endif %}
+            {% if current_user.role == 'super_admin' %}
+            <li><a class="dropdown-item" href="{{ url_for('register') }}"><i class="fas fa-user-plus"></i> Add User</a></li>
             {% endif %}
             <li><hr class="dropdown-divider"></li>
             <li><a class="dropdown-item" href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
@@ -127,6 +131,22 @@
 
     <!-- Option 1: Bootstrap Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+
+    <script>
+      function togglePasswordVisibility(inputId, buttonElement) {
+        const passwordInput = document.getElementById(inputId);
+        const icon = buttonElement.querySelector('i');
+        if (passwordInput.type === 'password') {
+          passwordInput.type = 'text';
+          icon.classList.remove('fa-eye');
+          icon.classList.add('fa-eye-slash');
+        } else {
+          passwordInput.type = 'password';
+          icon.classList.remove('fa-eye-slash');
+          icon.classList.add('fa-eye');
+        }
+      }
+    </script>
 
     <!-- Option 2: Separate Popper and Bootstrap JS -->
     <!--

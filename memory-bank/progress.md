@@ -4,7 +4,7 @@
 
 **Status Overview:**
 
-*   **Current State:** The application implements the core CAPA workflow with AI integration. Startup module errors (`flask_login`, `flask_wtf`) have been resolved. The semantic search functionality uses `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`. User registration has been refined: `email-validator` dependency issues are fixed, and the company selection list for new users is correctly filtered. Development continues on the multi-company support feature.
+*   **Current State:** The application implements the core CAPA workflow with AI integration. Startup module errors (`flask_login`, `flask_wtf`) have been resolved. The semantic search functionality uses `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`. User registration has been refined. **Development of the soft delete feature for CAPA issues is underway.** Development continues on the multi-company support feature.
 *   **What Works (Inferred & Recently Enhanced):**
     *   Core CAPA workflow (issue creation, Gemba, RCA, Action Plan, Evidence, Closure).
     *   AI-powered suggestions for RCA and Action Plans (using Google Generative AI for text generation).
@@ -31,6 +31,8 @@
         *   Populated from database via `/api/machine_names`.
         *   Uses Choices.js for search functionality.
         *   Allows manual input for new machine names.
+    *   **Form Security (`new_capa.html`):**
+        *   Added CSRF token (`form.hidden_tag()`) to the new CAPA submission form to prevent CSRF attacks and resolve submission errors.
     *   **File upload animation for 'Foto Bukti' on 'Gemba Investigation' form (`gemba_investigation.html`)**.
     *   **Navbar UI Enhancements (`templates/base.html`):**
         *   Added vertical padding (`py-2`) to the main navbar element.
@@ -62,14 +64,34 @@
             1.  **Stage 1:** From machine-filtered (or all if no machine name) entries, identifies Top 5 based purely on *issue description similarity*.
             2.  **Stage 2:** From these Top 5, identifies the Top 3 based purely on *5 Whys similarity*.
         *   The final reported score for a recommendation is its 5 Whys similarity score from Stage 2.
+    *   **Soft Delete Functionality (Backend Logic - Phase 1):**
+        *   `CapaIssue` model updated with `is_deleted` (Boolean) and `deleted_at` (DateTime) fields.
+        *   New route `/capa/<int:capa_id>/soft_delete` created in `routes.py` for `super_admin` to mark issues as deleted.
+        *   `index` and `dashboard_data` routes in `routes.py` updated to filter out issues where `CapaIssue.is_deleted == True`.
         *   Added a helper function `_extract_text_from_whys_json_str` for consistent text extraction from 5 Whys JSON data.
-*   **What's Left to Build / Refine
+    *   **CSRF Protection:**
+        *   Added `{{ form.hidden_tag() }}` to forms in `new_capa.html`, `gemba_investigation.html`, and multiple forms within `view_capa.html`.
+        *   Resolved `UndefinedError: 'form' is undefined` for these pages by ensuring routes pass a `form` object (instance of `CSRFOnlyForm`) to the templates for GET requests. Authentication routes were confirmed to correctly pass their specific forms.
+    *   **What's Left to Build / Refine
+- **Test CSRF Protection (High Priority):**
+    - Thoroughly test all forms where CSRF tokens were recently added (`new_capa.html`, `gemba_investigation.html`, `view_capa.html`) to confirm protection is active and forms function as expected.
 - **Test Dashboard Date Filters (USER ACTION - High Priority):**
     - User to conduct thorough end-to-end testing of the recent JavaScript and UI changes in `dashboard.html` for the date filtering system (Predefined, Year/Month/Week, Custom Range).
     - Verify data accuracy for all filter combinations, especially YMW default year behavior.
     - Provide feedback on UI aesthetic changes to the filter bar.
     - Identify and report any bugs or unexpected behavior.
     - After user testing, potentially refine week calculation logic in `routes.py` or address further JS issues based on feedback.
+- **Implement Soft Delete for CAPA Issues (In Progress):**
+    - **Database Migration (Pending - USER ACTION):**
+        - Run `flask db migrate -m "Add soft delete fields to CapaIssue"`.
+        - Run `flask db upgrade`.
+        - **Potential Blocker:** Address `ModuleNotFoundError` in `migrations/update_schema.py` if it occurs. User to verify script content, save, ensure venv activation, and re-attempt execution.
+    - **Testing (Backend - Pending):**
+        - Verify the soft delete route marks CAPAs correctly in the database.
+        - Confirm soft-deleted CAPAs are excluded from display and analytics views.
+    - **UI Implementation (Pending):**
+        - Add a "Delete" button for CAPA issues (e.g., on `view_capa.html` or `index.html`).
+        - Implement a confirmation modal/dialog before deletion.
 - **Implement 'Forgot Password' Feature (In Progress):**
     - Add email sending capability (`Flask-Mail`). (Added to `requirements.txt`, config in `app.py`)
     - Implement secure token generation and verification for password reset links. (Methods added to `User` model)
