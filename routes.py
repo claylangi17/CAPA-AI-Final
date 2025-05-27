@@ -212,9 +212,12 @@ def register_routes(app):
         return render_template('login.html', title='Login', form=form)
 
     @app.route('/register', methods=['GET', 'POST'])
+    @login_required
     def register():
-        if current_user.is_authenticated:
+        if current_user.role != 'super_admin':
+            flash('You do not have permission to access this page.', 'danger')
             return redirect(url_for('index'))
+
         form = RegistrationForm()
         # Populate company choices - ensuring it's done before validation if needed, or on GET
         form.company_id.choices = [
