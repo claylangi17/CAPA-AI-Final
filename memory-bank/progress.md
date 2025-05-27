@@ -31,6 +31,8 @@
         *   Populated from database via `/api/machine_names`.
         *   Uses Choices.js for search functionality.
         *   Allows manual input for new machine names.
+    *   **Form Security (`new_capa.html`):**
+        *   Added CSRF token (`form.hidden_tag()`) to the new CAPA submission form to prevent CSRF attacks and resolve submission errors.
     *   **File upload animation for 'Foto Bukti' on 'Gemba Investigation' form (`gemba_investigation.html`)**.
     *   **Navbar UI Enhancements (`templates/base.html`):**
         *   Added vertical padding (`py-2`) to the main navbar element.
@@ -67,7 +69,12 @@
         *   New route `/capa/<int:capa_id>/soft_delete` created in `routes.py` for `super_admin` to mark issues as deleted.
         *   `index` and `dashboard_data` routes in `routes.py` updated to filter out issues where `CapaIssue.is_deleted == True`.
         *   Added a helper function `_extract_text_from_whys_json_str` for consistent text extraction from 5 Whys JSON data.
-*   **What's Left to Build / Refine
+    *   **CSRF Protection:**
+        *   Added `{{ form.hidden_tag() }}` to forms in `new_capa.html`, `gemba_investigation.html`, and multiple forms within `view_capa.html`.
+        *   Resolved `UndefinedError: 'form' is undefined` for these pages by ensuring routes pass a `form` object (instance of `CSRFOnlyForm`) to the templates for GET requests. Authentication routes were confirmed to correctly pass their specific forms.
+    *   **What's Left to Build / Refine
+- **Test CSRF Protection (High Priority):**
+    - Thoroughly test all forms where CSRF tokens were recently added (`new_capa.html`, `gemba_investigation.html`, `view_capa.html`) to confirm protection is active and forms function as expected.
 - **Test Dashboard Date Filters (USER ACTION - High Priority):**
     - User to conduct thorough end-to-end testing of the recent JavaScript and UI changes in `dashboard.html` for the date filtering system (Predefined, Year/Month/Week, Custom Range).
     - Verify data accuracy for all filter combinations, especially YMW default year behavior.

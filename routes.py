@@ -27,7 +27,7 @@ from flask_login import (
     logout_user
 )
 from flask_mail import Message
-from flask_wtf import FlaskForm
+from flask_wtf import FlaskForm, CSRFProtect
 from sqlalchemy import distinct
 from werkzeug.utils import secure_filename
 from wtforms import (
@@ -64,6 +64,9 @@ from utils import allowed_file
 
 # Define your local timezone
 LOCAL_TIMEZONE = pytz.timezone('Asia/Jakarta')  # Or your specific timezone for +07:00
+
+class CSRFOnlyForm(FlaskForm):
+    pass
 
 def register_routes(app):
 
@@ -634,6 +637,46 @@ def register_routes(app):
         except Exception as e:
             app.logger.error(f"Error executing query for machine names: {e}")
             return jsonify({'error': 'Could not fetch machine names due to a server error.'}), 500
+            
+    @app.route('/api/knowledge_machine_names')
+    @login_required
+    def api_knowledge_machine_names():
+        s_company_id = session.get('selected_company_id')
+        query = db.session.query(distinct(AIKnowledgeBase.machine_name)).filter(AIKnowledgeBase.machine_name.isnot(None), AIKnowledgeBase.machine_name != '')
+
+        if current_user.role == 'super_admin' and s_company_id == 'all':
+            # Super admin viewing all companies, no additional company filter needed on query
+            pass
+        elif s_company_id is not None and s_company_id != 'all':
+            try:
+                company_id_int = int(s_company_id)
+                query = query.filter(AIKnowledgeBase.company_id == company_id_int)
+            except ValueError:
+                app.logger.error(f"Invalid company_id '{s_company_id}' in session for api_knowledge_machine_names for user {current_user.username}.")
+                flash('Invalid company selection for knowledge machine names.', 'danger')
+                return jsonify([])
+        elif current_user.role != 'super_admin': # Regular user
+            if current_user.company_id:
+                query = query.filter(AIKnowledgeBase.company_id == current_user.company_id)
+            else:
+                app.logger.warning(f"User {current_user.username} (role: {current_user.role}) has no company_id for api_knowledge_machine_names.")
+                flash('Your user profile is not associated with a company.', 'warning')
+                return jsonify([])
+        elif current_user.role == 'super_admin' and s_company_id is None:
+            app.logger.warning(f"Super admin {current_user.username} has no selected_company_id in session for api_knowledge_machine_names. Defaulting to all.")
+            pass
+        else:
+            app.logger.error(f"Unexpected company session state for api_knowledge_machine_names user {current_user.username}, role {current_user.role}, session company ID {s_company_id}.")
+            flash('Could not determine company context for knowledge machine names.', 'danger')
+            return jsonify([])
+
+        try:
+            machine_names_result = query.order_by(AIKnowledgeBase.machine_name).all()
+            machine_names = [item[0] for item in machine_names_result if item[0]]
+            return jsonify(machine_names)
+        except Exception as e:
+            app.logger.error(f"Error executing query for knowledge machine names: {e}")
+            return jsonify({'error': 'Could not fetch knowledge machine names due to a server error.'}), 500
 
     @app.route('/gemba/<int:capa_id>', methods=['GET', 'POST'])
     @login_required
@@ -708,7 +751,8 @@ def register_routes(app):
                 flash(f'Error saving Gemba investigation: {str(e)}', 'danger')
 
         # GET request or form submission failed
-        return render_template('gemba_investigation.html', issue=issue)
+        form = CSRFOnlyForm()
+        return render_template('gemba_investigation.html', issue=issue, form=form)
 
     @app.route('/new', methods=['GET', 'POST'])
     @login_required
@@ -859,8 +903,9 @@ def register_routes(app):
                             app.logger.error(
                                 f"Error removing photo {full_p_path} during rollback: {e_remove}")
 
-        # GET request: just display the form
-        return render_template('new_capa.html')
+        # GET request: display the form with a CSRF token
+        form = CSRFOnlyForm()
+        return render_template('new_capa.html', form=form)
 
     @app.route('/view/<int:capa_id>')
     @login_required
@@ -870,7 +915,8 @@ def register_routes(app):
             db.joinedload(CapaIssue.action_plan),
             db.joinedload(CapaIssue.evidence)
         ).get_or_404(capa_id)
-        return render_template('view_capa.html', issue=issue)
+        form = CSRFOnlyForm()
+        return render_template('view_capa.html', issue=issue, form=form)
 
     @app.route('/edit_rca/<int:capa_id>', methods=['POST'])
     @login_required

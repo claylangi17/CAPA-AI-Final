@@ -82,13 +82,13 @@
             *   Successful logout.
             *   Unauthorized access to protected routes post-logout (redirects to login).
     *   **UI Enhancements (`new_capa.html`, `view_capa.html`, and `gemba_investigation.html`):**
-    *   **UI Enhancements (`new_capa.html`, `view_capa.html`, and `gemba_investigation.html`):**
         *   Implemented file upload animation on 'Submit New CAPA Issue' form: Added a spinner and 'uploading' message for the 'Initial Issue Photo' field.
         *   Enhanced 'Machine Name' input on `new_capa.html`: Replaced free text input with a searchable dropdown using Choices.js.
         *   Created a new API endpoint `/api/machine_names` in `routes.py` to provide existing machine names. **Source of machine names for this API is now the `AiKnowledgeBase` table (previously `CapaIssue` table).**
         *   Included Choices.js CDN in `base.html`.
         *   Implemented file upload animation for 'Edit Bukti' form in `view_capa.html` (previous session).
         *   Added file upload animation to the 'Foto Bukti' section in `gemba_investigation.html` for consistency with other forms.
+        *   **CSRF Token Fix (`new_capa.html`):** Added `{{ form.hidden_tag() }}` to the form in `new_capa.html` to resolve CSRF token missing errors on submission.
     *   **Embedding Model Change (`ai_learning.py`):**
         *   Mengganti model embedding dari `google.generativeai` (`models/embedding-001`) ke `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`.
         *   Mengimpor `SentenceTransformer` dari `sentence_transformers`.
@@ -108,19 +108,21 @@
         *   Added debug log for the calculated similarity score.
         *   Added debug log for invalid input cases, detailing input types.
 
-**Next Steps (Immediate):**
+*   **Next Steps (Immediate):**
+    *   **Testing CSRF Protection (High Priority):**
+        *   Thoroughly test all forms where CSRF tokens were recently added (`new_capa.html`, `gemba_investigation.html`, `view_capa.html`) to ensure CSRF tokens are functioning correctly and form submissions are processed without errors.
+    *   **Soft Delete - Database Migration:**
+        *   Run `flask db migrate -m "Add soft delete fields to CapaIssue"`.
+        *   Run `flask db upgrade`.
+        *   Address potential `ModuleNotFoundError` with `update_schema.py` by verifying script content and virtual environment activation.
+    *   **Soft Delete - Testing:**
+        *   Test the `/capa/<int:capa_id>/soft_delete` route functionality.
+        *   Verify that soft-deleted CAPAs are correctly filtered from the `index` page and `dashboard_data` aggregations.
+    *   **Soft Delete - UI Updates:**
+        *   Implement a "Delete" button in the UI for CAPA issues (e.g., on `view_capa.html` or `index.html`).
+        *   Ensure the button triggers the soft delete route.
+        *   Add a confirmation dialog before soft deletion.
 
-*   **Soft Delete - Database Migration:**
-    *   Run `flask db migrate -m "Add soft delete fields to CapaIssue"`.
-    *   Run `flask db upgrade`.
-    *   Address potential `ModuleNotFoundError` with `update_schema.py` by verifying script content and virtual environment activation.
-*   **Soft Delete - Testing:**
-    *   Test the `/capa/<int:capa_id>/soft_delete` route functionality.
-    *   Verify that soft-deleted CAPAs are correctly filtered from the `index` page and `dashboard_data` aggregations.
-*   **Soft Delete - UI Updates:**
-    *   Implement a "Delete" button in the UI for CAPA issues (e.g., on `view_capa.html` or `index.html`).
-    *   Ensure the button triggers the soft delete route.
-    *   Add a confirmation dialog before soft deletion.
     *   **Debugging Attempt for Action Plan Search (`ai_learning.py`):**
         *   Modified conditional assignment for `current_issue_embedding` and replaced `cosine_similarity` with `cosine_similarity_rca` in `get_relevant_action_plan_knowledge`.
         *   This, along with subsequent robust NumPy array handling, resolved the "truth value of an array is ambiguous" error.
@@ -143,6 +145,13 @@
         *   Adjusted `top` style of `#sticky-flash-container` to `78px`.
         *   Fixed alignment issue for regular users by changing company display from `<span class="navbar-text me-3">` to `<a class="nav-link" href="#">` within a `<li class="nav-item dropdown">` element for consistent styling with super_admin view.
     *   **Navbar Alignment Fix for Regular Users:** Fixed the alignment issue for regular users by modifying the company display in the navbar to ensure consistent styling with the super admin view.
+    *   **Security Enhancements:**
+        *   **CSRF Protection (All Forms):** 
+            *   Added `{{ form.hidden_tag() }}` to all identified forms requiring it across the application (`new_capa.html`, `gemba_investigation.html`, `view_capa.html`) to enhance security against CSRF attacks. This includes:
+                *   `new_capa.html`: New CAPA submission form.
+                *   `gemba_investigation.html`: Gemba investigation form.
+                *   `view_capa.html`: RCA Edit, Action Plan Edit, Temporary/Preventive Evidence Submission, Close CAPA, Edit Evidence Modal forms.
+            *   **Resolved `jinja2.exceptions.UndefinedError: 'form' is undefined`:** Fixed this error for `new_capa.html`, `view_capa.html`, and `gemba_investigation.html` by defining a minimal `CSRFOnlyForm(FlaskForm)` in `routes.py` and ensuring an instance of it is passed to these templates during GET requests. Authentication routes (`login`, `register`, etc.) were confirmed to correctly pass their specific WTForms.
 
 *   **Next Steps & Action Items:**
     1.  **Review Navbar UI Changes:**

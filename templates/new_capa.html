@@ -13,6 +13,7 @@
     }
   </style>
   <form method="POST" action="{{ url_for('new_capa') }}" enctype="multipart/form-data">
+    {{ form.hidden_tag() }}
     <div class="mb-3">
       <label for="customer_name" class="form-label required-field">Customer Name</label>
       <input type="text" class="form-control" id="customer_name" name="customer_name" required>
@@ -102,7 +103,7 @@
               allowHTML: true
           });
 
-          fetch('{{ url_for("api_machine_names") }}')
+          fetch('{{ url_for("api_knowledge_machine_names") }}')
               .then(response => response.json())
               .then(data => {
                   let machineOptions = [];
