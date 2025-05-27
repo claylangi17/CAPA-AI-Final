@@ -46,12 +46,13 @@
 [x] Create dev branch
 [x] add to main Branch
 [ ] Tambahkan 4M 1E (optional)
-[x] Fitur Delete CAPA
+[x] Fitur Delete CAPA only on super admin role
 [X] Hasil ainya buat tidak ada mengapa lagi 
 [x] Fitur liat password
 [x] Fitur register hanya bisa dipakai oleh master admin
 [X] Companynya ganti printec perkasa tanggerang dan Cikarang (bukan 1&2) - Ask Ignaz update db 
 [x] Buat script untuk hapus database CAPA yang idnya dari 0 - 3 digit (dari semua table di database)
+[x] Fix bug di view contoh pembelajaran dan add tombol close
 
 Flow:
 masukin case (Batch, Jumlah reject) -> required untuk gemba (Foto, deskripsi real issue) -> RCA -> Action plan -> evidence
