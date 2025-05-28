@@ -362,6 +362,7 @@
 </div>
 {% endif %}
 <form method="POST" action="{{ url_for('edit_rca', capa_id=issue.capa_id) }}" id="why-analysis-form">
+        {{ form.hidden_tag() }} {# CSRF token #}
     <div class="mb-3 p-3 border rounded bg-light">
         <h5>Saran AI:</h5>
         {% if rca_data.error %}
@@ -412,21 +413,23 @@
         
         {% if issue.root_cause.learning_examples_json %}
         <div class="mt-3">
-            <div class="dropdown">
-                <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="aiLearningDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                    <i class="fas fa-brain"></i> Lihat Contoh Pembelajaran AI
+            <div class="ai-examples-dropdown">
+                <button class="btn btn-outline-primary dropdown-toggle" type="button" id="aiLearningDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-brain me-1"></i> Lihat Contoh Pembelajaran AI
                 </button>
-                <div class="dropdown-menu dropdown-menu-lg p-3" aria-labelledby="aiLearningDropdown" style="width: 600px; max-height: 500px; overflow-y: auto;">
-                    <h6 class="dropdown-header border-bottom pb-2">Contoh Pembelajaran yang AI Gunakan</h6>
-                    <p class="small text-muted px-2">Contoh kasus sebelumnya yang digunakan AI untuk menghasilkan saran analisis akar masalah:</p>
+                <div class="dropdown-menu p-3" aria-labelledby="aiLearningDropdown" style="min-width: 40vw; max-width: 80vw; max-height: 70vh; overflow-y: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.1); position: relative;">
+                    <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                        <h5 class="mb-0">Contoh Pembelajaran yang AI Gunakan</h5>
+                    </div>
+                    <p class="small text-muted px-2 mb-3">Contoh kasus sebelumnya yang digunakan AI untuk menghasilkan saran analisis akar masalah:</p>
                     
                     {% set learning_examples = issue.root_cause.learning_examples_json|fromjson if issue.root_cause.learning_examples_json else [] %}
                     {% if learning_examples|length > 0 %}
                         <div class="accordion" id="learningExamplesAccordion">
                         {% for example in learning_examples %}
-                            <div class="accordion-item border-0 mb-2">
+                            <div class="accordion-item border rounded-3 mb-3 shadow-sm">
                                 <h2 class="accordion-header" id="example-heading-{{ example.id }}">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                    <button class="accordion-button collapsed fw-medium" type="button" data-bs-toggle="collapse"
                                         data-bs-target="#example-collapse-{{ example.id }}" aria-expanded="false"
                                         aria-controls="example-collapse-{{ example.id }}">
                                         Contoh {{ example.id }} (CAPA ID: {{ example.capa_id }})
@@ -434,7 +437,7 @@
                                 </h2>
                                 <div id="example-collapse-{{ example.id }}" class="accordion-collapse collapse"
                                     aria-labelledby="example-heading-{{ example.id }}" data-bs-parent="#learningExamplesAccordion">
-                                    <div class="accordion-body bg-light rounded">
+                                    <div class="accordion-body bg-light rounded p-3">
                                         <div class="mb-2">
                                             <strong>Deskripsi:</strong> {{ example.description }}
                                         </div>
@@ -444,10 +447,10 @@
                                         <div class="mb-2">
                                             <strong>Analisis 5 Why:</strong>
                                         </div>
-                                        <div class="ms-2">
+                                        <div class="ms-2 ps-2 border-start border-primary">
                                             {% for why in example.whys %}
-                                                <div class="mb-1">
-                                                    <span class="fw-bold">Why {{ why.number }}:</span> {{ why.text }}
+                                                <div class="mb-2">
+                                                    <span class="fw-bold text-primary">Why {{ why.number }}:</span> {{ why.text }}
                                                 </div>
                                             {% endfor %}
                                         </div>
@@ -459,6 +462,13 @@
                     {% else %}
                         <p class="text-center text-muted my-3">Tidak ada contoh pembelajaran yang tersedia untuk saran ini.</p>
                     {% endif %}
+                    
+                    <!-- Close button at the bottom -->
+                    <div class="text-center mt-3">
+                        <button type="button" class="btn btn-secondary" id="closeAiLearningBtn">
+                            <i class="fas fa-times me-1"></i> Tutup
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -665,6 +675,7 @@
     </div>
     {% endif %}
     <form method="POST" action="{{ url_for('edit_action_plan', capa_id=issue.capa_id) }}">
+        {{ form.hidden_tag() }} {# CSRF token #}
         <div class="mb-3 p-3 border rounded bg-light">
             <h5>Saran AI:</h5>
             {% if ap_data.error %}
@@ -1058,6 +1069,7 @@
                             <!-- Formulir pengajuan bukti untuk tindakan ini -->
                             <form method="POST" action="{{ url_for('submit_evidence', capa_id=issue.capa_id) }}"
                                 class="mt-3 border p-3 rounded" enctype="multipart/form-data">
+                                {{ form.hidden_tag() }} {# CSRF token #}
                                 <h6 class="mb-3">Ajukan Bukti untuk Tindakan Ini</h6>
                                 <input type="hidden" name="action_type" value="temporary">
                                 <input type="hidden" name="action_index" value="{{ i }}">
@@ -1157,6 +1169,7 @@
                             <!-- Formulir pengajuan bukti untuk tindakan ini -->
                             <form method="POST" action="{{ url_for('submit_evidence', capa_id=issue.capa_id) }}"
                                 class="mt-3 border p-3 rounded" enctype="multipart/form-data">
+                                {{ form.hidden_tag() }} {# CSRF token #}
                                 <h6 class="mb-3">Ajukan Bukti untuk Tindakan Ini</h6>
                                 <input type="hidden" name="action_type" value="preventive">
                                 <input type="hidden" name="action_index" value="{{ i }}">
@@ -1290,6 +1303,7 @@
     <!-- Tombol untuk menutup CAPA jika semua bukti telah diajukan -->
     <div class="text-center mt-4">
         <form method="POST" action="{{ url_for('close_capa', capa_id=issue.capa_id) }}">
+            {{ form.hidden_tag() }} {# CSRF token #}
             <button type="submit" class="btn btn-success btn-lg">Tutup CAPA Saya</button>
         </form>
     </div>
@@ -1328,6 +1342,7 @@
                 <div class="modal-body">
                     <form method="POST" action="{{ url_for('edit_evidence', capa_id=issue.capa_id) }}"
                         enctype="multipart/form-data">
+                        {{ form.hidden_tag() }} {# CSRF token #}
                         <input type="hidden" id="evidence_id" name="evidence_id" value="">
                         <input type="hidden" id="action_type" name="action_type" value="">
                         <input type="hidden" id="action_index" name="action_index" value="">
@@ -1687,6 +1702,51 @@
 
             // Inisialisasi event listeners untuk tombol delete yang sudah ada
             setupDeleteListeners();
+        });
+    </script>
+
+    <!-- Script to fix dropdown issues and enhance UI -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set all dropdown toggles to not auto-close when clicked inside
+            document.querySelectorAll('.dropdown-toggle').forEach(button => {
+                button.setAttribute('data-bs-auto-close', 'false');
+            });
+
+            // Prevent dropdown from closing when clicked inside
+            document.querySelectorAll('.dropdown-menu').forEach(menu => {
+                menu.addEventListener('click', function(e) {
+                    // Don't stop propagation for accordion buttons and links
+                    if (!e.target.closest('.accordion-button') && 
+                        !e.target.closest('#closeAiLearningBtn') && 
+                        e.target.tagName !== 'A') {
+                        e.stopPropagation();
+                    }
+                });
+            });
+
+            // Handle the close button click
+            document.getElementById('closeAiLearningBtn')?.addEventListener('click', function() {
+                // Find the dropdown toggle button and hide the dropdown
+                const dropdown = document.querySelector('#aiLearningDropdown');
+                if (dropdown) {
+                    // Create and dispatch a click event
+                    const clickEvent = new MouseEvent('click', {
+                        bubbles: true,
+                        cancelable: true,
+                        view: window
+                    });
+                    dropdown.dispatchEvent(clickEvent);
+                }
+            });
+
+            // Initialize tooltips if they exist
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            if (tooltipTriggerList.length > 0) {
+                tooltipTriggerList.map(function (tooltipTriggerEl) {
+                    return new bootstrap.Tooltip(tooltipTriggerEl);
+                });
+            }
         });
     </script>
     {% endblock %}

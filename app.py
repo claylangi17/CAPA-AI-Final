@@ -14,6 +14,7 @@ from models import db, User
 # Removed: from routes import register_routes
 from flask_bootstrap import Bootstrap
 from utils import from_json_filter, nl2br_filter
+from flask_wtf.csrf import CSRFProtect # Added for CSRF protection
 
 # Initialize the Flask application
 app = Flask(__name__)
@@ -37,12 +38,18 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = SQLALCHEMY_TRACK_MODIFICATIONS
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 
+# Initialize CSRF Protection
+csrf = CSRFProtect(app) # Added for CSRF protection
+
 # Register custom Jinja filters
 app.jinja_env.filters['fromjson'] = from_json_filter
 app.jinja_env.filters['nl2br'] = nl2br_filter
 
 # Initialize the database with the app
 db.init_app(app)
+
+# Initialize Flask-Migrate
+migrate = Migrate(app, db)
 
 # Initialize Bootstrap
 bootstrap = Bootstrap(app)

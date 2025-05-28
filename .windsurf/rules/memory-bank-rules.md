@@ -4,7 +4,8 @@ trigger: always_on
 
 1. Please always read the memory bank before you do anything
 2. always updated the memory bank if there any changes 
-3. please make sure create a memory bank folder and file, if the folder and file wasn't there, create based on this instructions below:
+3. Selalu menggunakan flask migrate jika ingin update sesuatu di database
+4. please make sure create a memory bank folder and file, if the folder and file wasn't there, create based on this instructions below:
 
 # Windsurf's Memory Bank
 

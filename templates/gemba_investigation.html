@@ -246,6 +246,7 @@
   <div class="card-body">
     <form method="POST" action="{{ url_for('gemba_investigation', capa_id=issue.capa_id) }}"
       enctype="multipart/form-data" id="gembaForm">
+        {{ form.hidden_tag() }} {# CSRF token #}
       <div class="mb-3">
         <label for="gemba_findings" class="form-label required-field">Apa hasil temuan dari investigasi lapangan
           Anda?</label>
