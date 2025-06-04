@@ -57,6 +57,7 @@
 [ ] User isi register form > admin get notify (request register list user) > admin approve > sent email to user kalau sudah di approve untuk data diri yang diisi di register form, lalu ada link untuk create password for user > user login pakai username yang diisi di register form dan password yang sudah dibuat tadi
 [ ] Buat yang bisa close CAPAnya adalah orang yang buka CAPAnya
 [ ] Buat table cutomer bisa di choose by dropdown
+[ ] Fix evidance pending photo not displayed in the pdf report
 
 
 Flow:
