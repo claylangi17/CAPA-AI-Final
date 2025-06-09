@@ -55,7 +55,7 @@
 [x] Fix bug di view contoh pembelajaran dan add tombol close
 [ ] Buat exportnya to customer and to internal (internal dalam bentuk link dan ada kasih tau ini issuenya sudah repeat atau gk, lalu untuk external pdf biasa)
 [ ] User isi register form > admin get notify (request register list user) > admin approve > sent email to user kalau sudah di approve untuk data diri yang diisi di register form, lalu ada link untuk create password for user > user login pakai username yang diisi di register form dan password yang sudah dibuat tadi
-[ ] Buat yang bisa close CAPAnya adalah orang yang buka CAPAnya
+[x] Buat yang bisa close CAPAnya adalah orang yang buka CAPAnya
 [ ] Buat table cutomer bisa di choose by dropdown
 [x] Fix evidance pending photo not displayed in the pdf report
 
