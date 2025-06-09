@@ -1429,13 +1429,33 @@ def register_routes(app):
                         current_app.root_path, current_app.config['UPLOAD_FOLDER'], photo_filename)
                     gemba_photo_abs_paths.append(abs_path)
 
+        evidence_photo_abs_paths = {} # Using a dictionary: evidence_id -> absolute_path
+        if issue.evidence:
+            for evidence_item in issue.evidence:
+                if evidence_item.evidence_photo_path:
+                    try:
+                        abs_path = os.path.join(
+                            current_app.root_path, current_app.config['UPLOAD_FOLDER'], evidence_item.evidence_photo_path)
+                        # Check if file exists to prevent errors in template if path is broken
+                        if os.path.exists(abs_path):
+                            evidence_photo_abs_paths[evidence_item.evidence_id] = abs_path
+                        else:
+                            print(f"Evidence photo not found at {abs_path} for evidence_id {evidence_item.evidence_id}")
+                            evidence_photo_abs_paths[evidence_item.evidence_id] = '' # Provide empty string if not found
+                    except Exception as e_path:
+                        print(f"Error creating path for evidence_id {evidence_item.evidence_id}: {e_path}")
+                        evidence_photo_abs_paths[evidence_item.evidence_id] = ''
+                else:
+                    evidence_photo_abs_paths[evidence_item.evidence_id] = ''
+
         html_out = render_template(
             'report_template.html',
             issue=issue,
             datetime=datetime,
             initial_photo_abs_paths=initial_photo_abs_paths,
             gemba_findings=gemba_findings,
-            gemba_photo_abs_paths=gemba_photo_abs_paths
+            gemba_photo_abs_paths=gemba_photo_abs_paths,
+            evidence_photo_abs_paths=evidence_photo_abs_paths
         )
 
         try:
