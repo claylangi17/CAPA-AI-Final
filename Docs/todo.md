@@ -58,6 +58,8 @@
 [x] Buat yang bisa close CAPAnya adalah orang yang buka CAPAnya
 [ ] Buat table cutomer bisa di choose by dropdown
 [x] Fix evidance pending photo not displayed in the pdf report
+[ ] Ubah admin passwords
+[ ] Buat dashboard untuk kasih tampil CAPA overdue 
 
 
 Flow:
