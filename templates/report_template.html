@@ -441,6 +441,12 @@
                 <dd>{{ issue.batch_number or 'N/A' }}</dd>
                 <dt>Tanggal Masalah:</dt>
                 <dd>{{ issue.issue_date.strftime('%d %B %Y') }}</dd>
+
+                {% if issue.creator %}
+                <dt>Dibuat Oleh:</dt>
+                <dd>{{ issue.creator.username }}</dd>
+                {% endif %}
+
                 <dt>Tanggal Pengajuan:</dt>
                 <dd>{{ issue.submission_timestamp.strftime('%d %B %Y, %H:%M') }}</dd>
                 <dt>Status:</dt>

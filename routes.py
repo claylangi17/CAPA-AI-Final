@@ -578,7 +578,7 @@ def register_routes(app):
             app.logger.error(f"Unexpected company session state for user {current_user.username}, role {current_user.role}, session company ID {s_company_id}. Displaying no issues.")
             query = query.filter(CapaIssue.company_id == -1) # Effectively no results
 
-        issues = query.order_by(CapaIssue.submission_timestamp.desc()).all()
+        issues = query.options(db.joinedload(CapaIssue.creator)).order_by(CapaIssue.submission_timestamp.desc()).all()
         return render_template('index.html', issues=issues)
 
 
@@ -857,7 +857,8 @@ def register_routes(app):
                 machine_name=machine_name,
                 batch_number=batch_number,
                 status='Open',
-                company_id=company_id_to_assign
+                company_id=company_id_to_assign,
+                created_by_user_id=current_user.id
             )
 
             try:
@@ -1351,6 +1352,11 @@ def register_routes(app):
     def close_capa(capa_id):
         issue = CapaIssue.query.get_or_404(capa_id)
 
+        # Authorization Check: Only creator or super_admin can close
+        if not (current_user.role == 'super_admin' or issue.created_by_user_id == current_user.id):
+            flash('Anda tidak memiliki izin untuk menutup CAPA ini. Hanya pembuat atau super admin yang dapat melakukannya.', 'danger')
+            return redirect(url_for('view_capa', capa_id=capa_id))
+
         if issue.status != 'Evidence Pending':
             flash('Status CAPA tidak memungkinkan penutupan saat ini.', 'danger')
             return redirect(url_for('view_capa', capa_id=capa_id))
@@ -1394,7 +1400,8 @@ def register_routes(app):
             db.joinedload(CapaIssue.gemba_investigation),
             db.joinedload(CapaIssue.root_cause),
             db.joinedload(CapaIssue.action_plan),
-            db.joinedload(CapaIssue.evidence)
+            db.joinedload(CapaIssue.evidence),
+            db.joinedload(CapaIssue.creator) # Ensure creator is loaded
         ).get_or_404(capa_id)
 
         # Convert timestamps to local timezone
