@@ -229,8 +229,9 @@
         .photo {
             max-width: 80%;
             /* Adjust size */
-            height: 300px;
-            /* CHANGED: Explicit height, matching previous max-height */
+            max-height: 300px;  /* Maximum 300px height */
+            width: auto;        /* Actual width will be calculated to maintain aspect ratio */
+            height: auto;       /* Actual height will be calculated to maintain aspect ratio */
             object-fit: contain;
             /* ADDED */
             object-position: center;
