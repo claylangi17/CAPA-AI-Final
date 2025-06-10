@@ -261,11 +261,7 @@
         <small class="form-text text-muted">
           Unggah foto bukti dari investigasi lapangan. Bisa pilih beberapa foto sekaligus.
         </small>
-        <!-- Upload Indicator -->
-        <div id="gembaUploadIndicator" class="mt-2" style="display: none;">
-          <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-          Mengunggah foto bukti...
-        </div>
+        <div id="gemba-image-preview-container" class="mt-2" style="display: flex; flex-wrap: wrap; gap: 10px;"></div>
       </div>
 
       <div class="d-grid gap-2 d-md-flex justify-content-md-end">
@@ -288,21 +284,143 @@
     const aiLoadingOverlay = document.getElementById('ai-loading-overlay');
     const submitButton = gembaForm ? gembaForm.querySelector('button[type="submit"]') : null;
     const gembaPhotosInput = document.getElementById('gemba_photos');
-    const gembaUploadIndicator = document.getElementById('gembaUploadIndicator');
+    const gembaImagePreviewContainer = document.getElementById('gemba-image-preview-container');
+    let gembaSelectedFilesDataTransfer = new DataTransfer();
 
-    // Show upload indicator briefly when files are selected
-    if (gembaPhotosInput && gembaUploadIndicator) {
-      gembaPhotosInput.addEventListener('change', function() {
-        if (gembaPhotosInput.files.length > 0) {
-          gembaUploadIndicator.style.display = 'block';
-          setTimeout(function() { // Automatically hide after a short delay
-            gembaUploadIndicator.style.display = 'none';
-          }, 2000); // Show for 2 seconds
-        } else {
-          // If selection is cleared (e.g., user deselects files)
-          gembaUploadIndicator.style.display = 'none';
+    if (gembaPhotosInput && gembaImagePreviewContainer) {
+      gembaPhotosInput.addEventListener('change', function(event) {
+        const newFiles = event.target.files;
+        // Add new files to our DataTransfer object, avoiding duplicates
+        for (let i = 0; i < newFiles.length; i++) {
+          let isDuplicate = false;
+          for (let j = 0; j < gembaSelectedFilesDataTransfer.files.length; j++) {
+            if (gembaSelectedFilesDataTransfer.files[j].name === newFiles[i].name &&
+                gembaSelectedFilesDataTransfer.files[j].size === newFiles[i].size) {
+              isDuplicate = true;
+              break;
+            }
+          }
+          if (!isDuplicate) {
+            gembaSelectedFilesDataTransfer.items.add(newFiles[i]);
+          }
         }
+        // Update the input's files property with the combined list
+        gembaPhotosInput.files = gembaSelectedFilesDataTransfer.files;
+        renderGembaImagePreviews();
       });
+
+      function renderGembaImagePreviews() {
+        gembaImagePreviewContainer.innerHTML = ''; // Clear existing previews
+        const files = gembaSelectedFilesDataTransfer.files;
+
+        if (files.length === 0) {
+          gembaPhotosInput.required = true; // Re-apply required if no files are selected
+        } else {
+          gembaPhotosInput.required = false; // Not required if files are present
+        }
+
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          if (file.type.startsWith('image/') || file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')) {
+            const previewWrapper = document.createElement('div');
+            previewWrapper.style.position = 'relative';
+            previewWrapper.style.marginRight = '10px';
+            previewWrapper.style.marginBottom = '10px';
+            previewWrapper.style.padding = '5px';
+            previewWrapper.style.border = '1px solid #eee';
+            previewWrapper.style.borderRadius = '4px';
+            previewWrapper.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+
+            const img = document.createElement('img');
+            img.src = URL.createObjectURL(file);
+            img.style.height = '50px';
+            img.style.width = 'auto';
+            img.style.objectFit = 'cover';
+            img.style.border = '1px solid #ddd';
+            img.style.borderRadius = '4px';
+            img.onload = () => {
+              URL.revokeObjectURL(img.src); // Free memory after load
+            };
+
+            const deleteButton = document.createElement('button');
+            deleteButton.innerHTML = '<i class="bi bi-trash-fill"></i>'; // Bootstrap trash icon
+            deleteButton.type = 'button'; // Prevent form submission
+            deleteButton.classList.add('btn', 'btn-danger', 'btn-sm'); // Bootstrap classes
+            deleteButton.style.position = 'absolute';
+            deleteButton.style.top = '-8px';
+            deleteButton.style.right = '-8px';
+            deleteButton.style.borderRadius = '50%';
+            deleteButton.style.width = '25px';
+            deleteButton.style.height = '25px';
+            deleteButton.style.lineHeight = '1';
+            deleteButton.style.padding = '0';
+            deleteButton.style.display = 'flex';
+            deleteButton.style.alignItems = 'center';
+            deleteButton.style.justifyContent = 'center';
+            deleteButton.style.fontSize = '12px';
+            deleteButton.style.cursor = 'pointer';
+            deleteButton.setAttribute('aria-label', 'Delete image ' + (i + 1));
+
+            deleteButton.addEventListener('click', function() {
+              const newFilesList = new DataTransfer();
+              for (let j = 0; j < gembaSelectedFilesDataTransfer.files.length; j++) {
+                if (i !== j) { // 'i' is from the outer loop's scope (index of file to delete)
+                  newFilesList.items.add(gembaSelectedFilesDataTransfer.files[j]);
+                }
+              }
+              gembaSelectedFilesDataTransfer = newFilesList;
+              gembaPhotosInput.files = gembaSelectedFilesDataTransfer.files; // Update the actual input
+              renderGembaImagePreviews(); // Re-render previews
+            });
+
+            img.onerror = () => {
+                previewWrapper.innerHTML = ''; // Clear the wrapper, removing the broken img
+                const placeholder = document.createElement('div');
+                placeholder.style.width = 'auto';
+                placeholder.style.maxWidth = '100px'; 
+                placeholder.style.height = '50px';
+                placeholder.style.display = 'flex';
+                placeholder.style.alignItems = 'center';
+                placeholder.style.justifyContent = 'center';
+                placeholder.style.border = '1px solid #ddd';
+                placeholder.style.borderRadius = '4px';
+                placeholder.style.fontSize = '10px';
+                placeholder.style.textAlign = 'center';
+                placeholder.style.overflow = 'hidden';
+                placeholder.style.textOverflow = 'ellipsis';
+                placeholder.style.whiteSpace = 'nowrap';
+                placeholder.textContent = file.name;
+                placeholder.title = file.name;
+                previewWrapper.appendChild(placeholder);
+                previewWrapper.appendChild(deleteButton); // Re-append the delete button
+            };
+            
+            img.style.cursor = 'pointer';
+            img.addEventListener('click', function() {
+              const modalImage = document.getElementById('modalImagePreview'); // Assumes this modal exists in base.html
+              if (modalImage) {
+                const originalFile = gembaSelectedFilesDataTransfer.files[i]; // 'i' from the outer loop
+                if (originalFile) {
+                    modalImage.src = URL.createObjectURL(originalFile);
+                    const previewModalElement = document.getElementById('imagePreviewModal'); // Assumes this modal exists
+                    if (previewModalElement) {
+                        const previewModal = new bootstrap.Modal(previewModalElement);
+                        previewModalElement.addEventListener('hidden.bs.modal', function onModalHide() {
+                            URL.revokeObjectURL(modalImage.src);
+                            previewModalElement.removeEventListener('hidden.bs.modal', onModalHide); // Clean up listener
+                        }, { once: true });
+                        previewModal.show();
+                    }
+                }
+              }
+            });
+
+            previewWrapper.appendChild(img);
+            previewWrapper.appendChild(deleteButton);
+            gembaImagePreviewContainer.appendChild(previewWrapper);
+          }
+        }
+      }
     }
 
     if (gembaForm && submitButton) {
