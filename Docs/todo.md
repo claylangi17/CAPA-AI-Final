@@ -32,7 +32,7 @@
 [x] Ganti semantic search pakai yang free
 [x] Animasi loading pada saat upload file 
 [x] Dashboard capa (repeted issue)
-[ ] show to user rekomendasi dari ainya 
+[x] show to user rekomendasi dari ainya 
 [x] Foto di bagian initial issue bisa lebih dari satu 
 [x]update waktu di pdf report
 [ ]summary sebelum pengajuan bukti (need to be consern again) 
@@ -45,7 +45,6 @@
 [ ] Masuk ai knowledge based ketika status sudah evidence pending, gaperlu tunggu close (need to be consern again) 
 [x] Create dev branch
 [x] add to main Branch
-[ ] Tambahkan 4M 1E (optional)
 [x] Fitur Delete CAPA only on super admin role
 [X] Hasil ainya buat tidak ada mengapa lagi 
 [x] Fitur liat password
@@ -53,6 +52,16 @@
 [X] Companynya ganti printec perkasa tanggerang dan Cikarang (bukan 1&2) - Ask Ignaz update db 
 [x] Buat script untuk hapus database CAPA yang idnya dari 0 - 3 digit (dari semua table di database)
 [x] Fix bug di view contoh pembelajaran dan add tombol close
+[ ] Buat exportnya to customer and to internal (internal dalam bentuk link dan ada kasih tau ini issuenya sudah repeat atau gk, lalu untuk external pdf biasa)
+[ ] User isi register form > admin get notify (request register list user) > admin approve > sent email to user kalau sudah di approve untuk data diri yang diisi di register form, lalu ada link untuk create password for user > user login pakai username yang diisi di register form dan password yang sudah dibuat tadi
+[x] Buat yang bisa close CAPAnya adalah orang yang buka CAPAnya
+[x] Buat table cutomer bisa di choose by dropdown
+[x] Fix evidance pending photo not displayed in the pdf report
+[ ] Ubah admin passwords
+[ ] Buat dashboard untuk kasih tampil CAPA overdue
+[x] Kasih fitur diplay setiap image yang di upload, dan juga edit photo gemba  
+
+
 
 Flow:
 masukin case (Batch, Jumlah reject) -> required untuk gemba (Foto, deskripsi real issue) -> RCA -> Action plan -> evidence

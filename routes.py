@@ -581,7 +581,7 @@ def register_routes(app):
             app.logger.error(f"Unexpected company session state for user {current_user.username}, role {current_user.role}, session company ID {s_company_id}. Displaying no issues.")
             query = query.filter(CapaIssue.company_id == -1) # Effectively no results
 
-        issues = query.order_by(CapaIssue.submission_timestamp.desc()).all()
+        issues = query.options(db.joinedload(CapaIssue.creator)).order_by(CapaIssue.submission_timestamp.desc()).all()
         return render_template('index.html', issues=issues)
 
 
@@ -679,12 +679,46 @@ def register_routes(app):
             return jsonify(machine_names)
         except Exception as e:
             app.logger.error(f"Error executing query for knowledge machine names: {e}")
-            return jsonify({'error': 'Could not fetch knowledge machine names due to a server error.'}), 500
+
+    @app.route('/api/customer_names', methods=['GET'])
+    @login_required
+    def api_customer_names():
+        current_app.logger.info(f"API_CUSTOMER_NAMES: Called by user {current_user.username}")
+        selected_company_id = session.get('selected_company_id')
+        current_app.logger.info(f"API_CUSTOMER_NAMES: Session selected_company_id: {selected_company_id}")
+
+        customer_names_query = db.session.query(distinct(CapaIssue.customer_name)).filter(CapaIssue.customer_name.isnot(None))
+        
+        # Log count before company filtering (if applicable)
+        customer_names_before_filtering = customer_names_query.all()
+        current_app.logger.info(f"API_CUSTOMER_NAMES: Query result count before potential filtering: {len(customer_names_before_filtering)}")
+
+        if selected_company_id and selected_company_id != 'all':
+            try:
+                company_id_int = int(selected_company_id)
+                customer_names_query = customer_names_query.filter(CapaIssue.company_id == company_id_int)
+                current_app.logger.info(f"API_CUSTOMER_NAMES: Filtering by specific company_id: {company_id_int}")
+            except ValueError:
+                current_app.logger.warning(f"API_CUSTOMER_NAMES: Invalid company_id format in session: {selected_company_id}. Returning empty list.")
+                return jsonify([]) 
+        elif selected_company_id == 'all':
+            current_app.logger.info("API_CUSTOMER_NAMES: selected_company_id is 'all'. Not filtering by company.")
+        else: # selected_company_id is None or some other unexpected value not 'all' and not caught by the first 'if'
+            current_app.logger.info("API_CUSTOMER_NAMES: No specific valid company_id ('all' or int) provided. Not filtering by company.")
+
+        customer_names_result = customer_names_query.all()
+        current_app.logger.info(f"API_CUSTOMER_NAMES: Query result count after potential filtering: {len(customer_names_result)}")
+    
+        customer_names = [name[0] for name in customer_names_result if name[0]] # Extract names and filter out None/empty
+        final_customer_names = sorted(list(set(customer_names)))
+        current_app.logger.info(f"API_CUSTOMER_NAMES: Returning customer names: {final_customer_names}")
+        return jsonify(final_customer_names)
 
     @app.route('/gemba/<int:capa_id>', methods=['GET', 'POST'])
     @login_required
     def gemba_investigation(capa_id):
         # Get the CAPA issue
+        # ... (rest of the code remains the same)
         issue = CapaIssue.query.get_or_404(capa_id)
 
         # Check if CAPA is closed
@@ -760,6 +794,8 @@ def register_routes(app):
     @app.route('/new', methods=['GET', 'POST'])
     @login_required
     def new_capa():
+        form = FlaskForm()  # Instantiate the form
+
         if request.method == 'POST':
             customer_name = request.form.get('customer_name')
             item_involved = request.form.get('item_involved')
@@ -777,19 +813,19 @@ def register_routes(app):
             # Basic validation for required text fields
             if not all([customer_name, item_involved, issue_date_str, issue_description]):
                 flash('Please fill in all required fields.', 'danger')
-                return render_template('new_capa.html')
+                return render_template('new_capa.html', form=form)
 
             # Photo validation (at least one photo if input is required by HTML)
             if not initial_photos_files or not any(f for f in initial_photos_files if f.filename):
                 flash('Please upload at least one initial issue photo.', 'danger')
-                return render_template('new_capa.html')
+                return render_template('new_capa.html', form=form)
 
             try:
                 issue_date = datetime.strptime(
                     issue_date_str, '%Y-%m-%d').date()
             except ValueError:
                 flash('Invalid date format. Please use YYYY-MM-DD.', 'danger')
-                return render_template('new_capa.html')
+                return render_template('new_capa.html', form=form)
 
             # Process and save uploaded photos temporarily
             for photo_file in initial_photos_files:
@@ -814,7 +850,7 @@ def register_routes(app):
                                 except OSError as e_remove_cleanup:
                                     app.logger.error(
                                         f"Error removing photo {sf_path} during save error cleanup: {e_remove_cleanup}")
-                        return render_template('new_capa.html')
+                        return render_template('new_capa.html', form=form)
                 elif photo_file and photo_file.filename:  # If file exists but not allowed
                     flash(
                         f'File type not allowed for {secure_filename(photo_file.filename)}.', 'danger')
@@ -826,7 +862,7 @@ def register_routes(app):
                             except OSError as e_remove_cleanup:
                                 app.logger.error(
                                     f"Error removing photo {sf_path} during type error cleanup: {e_remove_cleanup}")
-                    return render_template('new_capa.html')
+                    return render_template('new_capa.html', form=form)
 
             # Determine company_id for the new CAPA
             company_id_to_assign = None
@@ -860,7 +896,8 @@ def register_routes(app):
                 machine_name=machine_name,
                 batch_number=batch_number,
                 status='Open',
-                company_id=company_id_to_assign
+                company_id=company_id_to_assign,
+                created_by_user_id=current_user.id
             )
 
             try:
@@ -907,7 +944,6 @@ def register_routes(app):
                                 f"Error removing photo {full_p_path} during rollback: {e_remove}")
 
         # GET request: display the form with a CSRF token
-        form = CSRFOnlyForm()
         return render_template('new_capa.html', form=form)
 
     @app.route('/view/<int:capa_id>')
@@ -1354,6 +1390,11 @@ def register_routes(app):
     def close_capa(capa_id):
         issue = CapaIssue.query.get_or_404(capa_id)
 
+        # Authorization Check: Only creator or super_admin can close
+        if not (current_user.role == 'super_admin' or issue.created_by_user_id == current_user.id):
+            flash('Anda tidak memiliki izin untuk menutup CAPA ini. Hanya pembuat atau super admin yang dapat melakukannya.', 'danger')
+            return redirect(url_for('view_capa', capa_id=capa_id))
+
         if issue.status != 'Evidence Pending':
             flash('Status CAPA tidak memungkinkan penutupan saat ini.', 'danger')
             return redirect(url_for('view_capa', capa_id=capa_id))
@@ -1397,7 +1438,8 @@ def register_routes(app):
             db.joinedload(CapaIssue.gemba_investigation),
             db.joinedload(CapaIssue.root_cause),
             db.joinedload(CapaIssue.action_plan),
-            db.joinedload(CapaIssue.evidence)
+            db.joinedload(CapaIssue.evidence),
+            db.joinedload(CapaIssue.creator) # Ensure creator is loaded
         ).get_or_404(capa_id)
 
         # Convert timestamps to local timezone
@@ -1432,13 +1474,33 @@ def register_routes(app):
                         current_app.root_path, current_app.config['UPLOAD_FOLDER'], photo_filename)
                     gemba_photo_abs_paths.append(abs_path)
 
+        evidence_photo_abs_paths = {} # Using a dictionary: evidence_id -> absolute_path
+        if issue.evidence:
+            for evidence_item in issue.evidence:
+                if evidence_item.evidence_photo_path:
+                    try:
+                        abs_path = os.path.join(
+                            current_app.root_path, current_app.config['UPLOAD_FOLDER'], evidence_item.evidence_photo_path)
+                        # Check if file exists to prevent errors in template if path is broken
+                        if os.path.exists(abs_path):
+                            evidence_photo_abs_paths[evidence_item.evidence_id] = abs_path
+                        else:
+                            print(f"Evidence photo not found at {abs_path} for evidence_id {evidence_item.evidence_id}")
+                            evidence_photo_abs_paths[evidence_item.evidence_id] = '' # Provide empty string if not found
+                    except Exception as e_path:
+                        print(f"Error creating path for evidence_id {evidence_item.evidence_id}: {e_path}")
+                        evidence_photo_abs_paths[evidence_item.evidence_id] = ''
+                else:
+                    evidence_photo_abs_paths[evidence_item.evidence_id] = ''
+
         html_out = render_template(
             'report_template.html',
             issue=issue,
             datetime=datetime,
             initial_photo_abs_paths=initial_photo_abs_paths,
             gemba_findings=gemba_findings,
-            gemba_photo_abs_paths=gemba_photo_abs_paths
+            gemba_photo_abs_paths=gemba_photo_abs_paths,
+            evidence_photo_abs_paths=evidence_photo_abs_paths
         )
 
         try:

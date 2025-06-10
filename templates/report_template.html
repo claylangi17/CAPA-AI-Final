@@ -229,8 +229,9 @@
         .photo {
             max-width: 80%;
             /* Adjust size */
-            height: 300px;
-            /* CHANGED: Explicit height, matching previous max-height */
+            max-height: 300px;  /* Maximum 300px height */
+            width: auto;        /* Actual width will be calculated to maintain aspect ratio */
+            height: auto;       /* Actual height will be calculated to maintain aspect ratio */
             object-fit: contain;
             /* ADDED */
             object-position: center;
@@ -440,6 +441,12 @@
                 <dd>{{ issue.batch_number or 'N/A' }}</dd>
                 <dt>Tanggal Masalah:</dt>
                 <dd>{{ issue.issue_date.strftime('%d %B %Y') }}</dd>
+
+                {% if issue.creator %}
+                <dt>Dibuat Oleh:</dt>
+                <dd>{{ issue.creator.username }}</dd>
+                {% endif %}
+
                 <dt>Tanggal Pengajuan:</dt>
                 <dd>{{ issue.submission_timestamp.strftime('%d %B %Y, %H:%M') }}</dd>
                 <dt>Status:</dt>
@@ -625,7 +632,7 @@
             <h2>Bukti Implementasi</h2>
             {% for ev in issue.evidence %}
             <div class="evidence-block">
-                <img src="{{ url_for('uploaded_file', filename=ev.evidence_photo_path, _external=True) }}" class="photo"
+                <img src="{{ evidence_photo_abs_paths.get(ev.evidence_id, '') }}" class="photo"
                     alt="Evidence Photo {{ ev.evidence_id }}">
 
                 {# --- Logic to find and display related action text --- #}

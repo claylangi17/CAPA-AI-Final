@@ -30,9 +30,11 @@ class CapaIssue(db.Model):
     company_id = db.Column(db.Integer, db.ForeignKey('companies.id'), nullable=False)
     is_deleted = db.Column(db.Boolean, default=False, nullable=False)
     deleted_at = db.Column(db.DateTime, nullable=True)
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True) # Nullable True for now for existing data
 
     # Relationships
     company = db.relationship('Company', backref=db.backref('capa_issues', lazy='dynamic'))
+    creator = db.relationship('User', backref=db.backref('created_capa_issues', lazy='dynamic'), foreign_keys=[created_by_user_id])
     gemba_investigation = db.relationship('GembaInvestigation', backref='capa_issue',
                                           uselist=False, cascade="all, delete-orphan")  # One-to-one
     root_cause = db.relationship('RootCause', backref='capa_issue',

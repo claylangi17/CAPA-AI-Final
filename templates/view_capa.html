@@ -275,6 +275,12 @@
 
             <dt class="col-sm-3">Status:</dt>
             <dd class="col-sm-9"><span class="badge bg-info text-dark">{{ issue.status }}</span></dd>
+
+            {# Tambahkan ini untuk menampilkan pembuat CAPA #}
+            {% if issue.creator %}
+            <dt class="col-sm-3">Dibuat Oleh:</dt>
+            <dd class="col-sm-9">{{ issue.creator.username }}</dd>
+            {% endif %}
         </dl>
     </div>
     <div class="col-md-4">
@@ -1589,14 +1595,7 @@
             </div>
           </div>
           <div class="col-md-3">
-            <div class="mb-2">
-              <label class="form-label">Status:</label>
-              <select class="form-select" name="temp_action_status[]">
-                <option value="Pending" selected>Pending</option>
-                <option value="In Progress">In Progress</option>
-                <option value="Closed">Closed</option>
-              </select>
-            </div>
+            <input type="hidden" name="temp_action_status[]" value="Pending">
           </div>
         </div>
         <input type="hidden" name="temp_action_completed[]" value="">
@@ -1630,14 +1629,7 @@
             </div>
           </div>
           <div class="col-md-3">
-            <div class="mb-2">
-              <label class="form-label">Status:</label>
-              <select class="form-select" name="prev_action_status[]">
-                <option value="Pending" selected>Pending</option>
-                <option value="In Progress">In Progress</option>
-                <option value="Closed">Closed</option>
-              </select>
-            </div>
+            <input type="hidden" name="prev_action_status[]" value="Pending">
           </div>
         </div>
         <input type="hidden" name="prev_action_completed[]" value="">
