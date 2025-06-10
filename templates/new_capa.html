@@ -15,8 +15,10 @@
   <form method="POST" action="{{ url_for('new_capa') }}" enctype="multipart/form-data">
     {{ form.hidden_tag() }}
     <div class="mb-3">
-      <label for="customer_name" class="form-label required-field">Customer Name</label>
-      <input type="text" class="form-control" id="customer_name" name="customer_name" required>
+      <label for="customer_name_select" class="form-label required-field">Customer Name</label>
+      <select class="form-control" id="customer_name_select" name="customer_name_select"></select>
+      <input type="text" class="form-control mt-2" id="customer_name_other" name="customer_name_other" placeholder="Enter customer name if not in list" style="display: none;">
+      <input type="hidden" id="customer_name" name="customer_name" required>
     </div>
     <div class="mb-3">
       <label for="item_involved" class="form-label required-field">Item Involved</label>
@@ -26,7 +28,7 @@
       <label for="machine_name" class="form-label required-field">Machine Name</label>
       <select class="form-control" id="machine_name_select" name="machine_name_select"></select>
       <input type="text" class="form-control mt-2" id="machine_name_other" name="machine_name_other" placeholder="Enter machine name if not in list" style="display: none;">
-      <input type="hidden" id="machine_name" name="machine_name"> 
+      <input type="hidden" id="machine_name" name="machine_name" required> 
     </div>
     <div class="mb-3">
       <label for="batch_number" class="form-label">Batch number/ SPK</label>
@@ -43,6 +45,7 @@
     <div class="mb-3">
       <label for="initial_photos" class="form-label required-field">Initial Issue Photos (can select multiple)</label>
       <input class="form-control" type="file" id="initial_photos" name="initial_photos[]" accept="image/*" required multiple>
+      <div id="image-preview-container" class="mt-2" style="display: flex; flex-wrap: wrap; gap: 10px;"></div>
       <div id="newCapaUploadIndicator" style="display: none; margin-top: 10px; text-align: center;">
         <div class="spinner-border text-primary" role="status">
             <span class="visually-hidden">Loading...</span>
@@ -53,6 +56,22 @@
     <button type="submit" class="btn btn-primary">Submit Issue</button>
     <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancel</a>
   </form>
+
+  <!-- Image Preview Modal -->
+  <div class="modal fade" id="imagePreviewModal" tabindex="-1" aria-labelledby="imagePreviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="imagePreviewModalLabel">Image Preview</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body text-center">
+          <img src="" id="modalImagePreview" class="img-fluid" alt="Image Preview">
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
   document.addEventListener('DOMContentLoaded', function () {
       const newCapaForm = document.getElementById('initial_photos')?.form;
@@ -66,6 +85,19 @@
               if (submitButton) {
                   submitButton.disabled = true;
                   submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Mengirim...';
+              }
+
+              // Validate Customer Name field
+              const customerNameHiddenInput = document.getElementById('customer_name');
+              if (!customerNameHiddenInput.value.trim()) {
+                  alert('Customer Name harus dipilih atau diisi.');
+                  event.preventDefault();
+                  if (uploadIndicator) uploadIndicator.style.display = 'none';
+                  if (submitButton) {
+                      submitButton.disabled = false;
+                      submitButton.innerHTML = 'Submit Issue';
+                  }
+                  return;
               }
 
               const machineNameSelect = document.getElementById('machine_name_select');
@@ -87,12 +119,122 @@
               } else {
                   finalMachineNameInput.value = machineNameSelect.value;
               }
+
+              // Validate that finalMachineNameInput has a value
+              if (!finalMachineNameInput.value) {
+                  alert('Machine Name harus dipilih atau diisi.');
+                  event.preventDefault();
+                  if (uploadIndicator) uploadIndicator.style.display = 'none';
+                  if (submitButton) {
+                      submitButton.disabled = false;
+                      submitButton.innerHTML = 'Submit Issue';
+                  }
+                  return;
+              }
+              finalMachineNameInput.required = !finalMachineNameInput.value; // Ensure JS required property matches
+
+              // Customer Name Logic - Ensure hidden field is set and validate 'Other'
+              // The customerNameSelectElement, customerNameOtherElement, customerNameHiddenInput are available from DOMContentLoaded scope
+              const currentCustomerSelectedValue = customerNameSelectElement.value; // This is the underlying select's value, updated by Choices.js
+
+              if (currentCustomerSelectedValue === 'other_option') {
+                  customerNameHiddenInput.value = customerNameOtherElement.value.trim();
+                  if (!customerNameHiddenInput.value) {
+                      alert('Nama Pelanggan (Lainnya) harus diisi jika dipilih.');
+                      event.preventDefault();
+                      const submitButton = newCapaForm.querySelector('button[type="submit"]');
+                      if (submitButton) {
+                          submitButton.disabled = false;
+                          submitButton.innerHTML = 'Submit Issue'; 
+                      }
+                      const uploadIndicator = document.getElementById('newCapaUploadIndicator');
+                      if (uploadIndicator) uploadIndicator.style.display = 'none';
+                      return;
+                  }
+              } else {
+                  customerNameHiddenInput.value = currentCustomerSelectedValue;
+              }
+              // Final check on hidden input's requirement based on its value
+              customerNameHiddenInput.required = !customerNameHiddenInput.value;
           });
       }
 
       const machineNameSelectElement = document.getElementById('machine_name_select');
       const machineNameOtherElement = document.getElementById('machine_name_other');
-      
+
+      const customerNameSelectElement = document.getElementById('customer_name_select');
+      const customerNameOtherElement = document.getElementById('customer_name_other');
+      const customerNameHiddenInput = document.getElementById('customer_name'); // Hidden input for the actual value
+
+      if (customerNameSelectElement && customerNameOtherElement && customerNameHiddenInput) {
+          const customerNameChoices = new Choices(customerNameSelectElement, {
+              searchEnabled: true,
+              itemSelectText: 'Tekan untuk memilih',
+              removeItemButton: true,
+              placeholder: true,
+              placeholderValue: 'Pilih atau cari nama pelanggan...',
+              allowHTML: true
+          });
+
+          fetch('{{ url_for("api_customer_names") }}')
+              .then(response => response.json())
+              .then(data => { 
+                  console.log('API Response Data for Customer Names:', data); // Log 1: Raw API data
+                  let customerOptions = [];
+                  if (data && data.length > 0) {
+                      customerOptions = data.map(name => ({ value: name, label: name }));
+                  }
+                  // Add the 'Other' option to the list
+                  customerOptions.push({ value: 'other_option', label: '<b>Lainnya (input manual)...</b>', customProperties: { isOther: true } });
+                  
+                  console.log('Combined Customer Options for Choices.js:', customerOptions); // Log 2: Combined options
+                  // Set all choices at once, replacing any placeholders
+                  customerNameChoices.setChoices(customerOptions, 'value', 'label', true);
+
+                  // Initial field setup after choices are loaded
+                  updateCustomerNameFields(); 
+              })
+              .catch(error => {
+                  console.error('Error fetching customer names:', error);
+                  // If fetch fails, still provide the 'Other' option
+                  customerNameChoices.setChoices([
+                      { value: 'other_option', label: '<b>Lainnya (input manual)...</b>', customProperties: { isOther: true } }
+                  ], 'value', 'label', true);
+                  updateCustomerNameFields(); // Still try to set up fields
+              });
+
+          customerNameSelectElement.addEventListener('change', function(event) {
+              updateCustomerNameFields();
+          });
+
+          customerNameOtherElement.addEventListener('input', function() {
+              // This ensures the hidden input is updated as the user types in 'Other'
+              if (customerNameSelectElement.value === 'other_option') {
+                  customerNameHiddenInput.value = customerNameOtherElement.value.trim();
+                  // Update required status of hidden input based on 'Other' field's content
+                  customerNameHiddenInput.required = customerNameOtherElement.value.trim() === '';
+              }
+          });
+
+          function updateCustomerNameFields() {
+              const selectedValue = customerNameSelectElement.value; // Directly use the select's value
+
+              if (selectedValue === 'other_option') {
+                  customerNameOtherElement.style.display = 'block';
+                  customerNameOtherElement.required = true;
+                  customerNameHiddenInput.value = customerNameOtherElement.value.trim(); // Sync from 'Other' input
+                  customerNameHiddenInput.required = customerNameOtherElement.value.trim() === '';
+                  // customerNameOtherElement.focus(); // Optionally focus
+              } else {
+                  customerNameOtherElement.style.display = 'none';
+                  customerNameOtherElement.required = false;
+                  customerNameOtherElement.value = ''; // Clear other input if a direct customer is chosen
+                  customerNameHiddenInput.value = selectedValue || ''; 
+                  customerNameHiddenInput.required = !selectedValue; // Required if no actual selection
+              }
+          }
+      } // End of if (customerNameSelectElement)
+
       if (machineNameSelectElement) {
           const choices = new Choices(machineNameSelectElement, {
               searchEnabled: true,
@@ -137,5 +279,111 @@
           });
       }
   });
+
+  const initialPhotosInput = document.getElementById('initial_photos');
+  const imagePreviewContainer = document.getElementById('image-preview-container');
+  let selectedFilesDataTransfer = new DataTransfer();
+
+  if (initialPhotosInput && imagePreviewContainer) {
+    initialPhotosInput.addEventListener('change', function(event) {
+      const newFiles = event.target.files;
+      for (let i = 0; i < newFiles.length; i++) {
+        selectedFilesDataTransfer.items.add(newFiles[i]);
+      }
+      // Update the input's files property with the combined list
+      initialPhotosInput.files = selectedFilesDataTransfer.files;
+      renderImagePreviews();
+    });
+
+    function renderImagePreviews() {
+      imagePreviewContainer.innerHTML = ''; // Clear existing previews
+      const files = selectedFilesDataTransfer.files;
+
+      if (files.length === 0) {
+        initialPhotosInput.required = true; // Re-apply required if no files are selected
+      } else {
+        initialPhotosInput.required = false; // Not required if files are present
+      }
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (file.type.startsWith('image/')) {
+          const previewWrapper = document.createElement('div');
+          previewWrapper.style.position = 'relative';
+          previewWrapper.style.marginRight = '10px';
+          previewWrapper.style.marginBottom = '10px';
+          previewWrapper.style.padding = '5px'; // Add some padding
+          previewWrapper.style.border = '1px solid #eee';
+          previewWrapper.style.borderRadius = '4px';
+          previewWrapper.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+
+          const img = document.createElement('img');
+          img.src = URL.createObjectURL(file);
+          img.style.height = '50px';
+          img.style.width = 'auto';
+          img.style.objectFit = 'cover';
+          img.style.border = '1px solid #ddd';
+          img.style.borderRadius = '4px';
+          img.onload = () => {
+            URL.revokeObjectURL(img.src); // Free memory after load
+          }
+          img.style.cursor = 'pointer';
+          img.addEventListener('click', function() {
+            const modalImage = document.getElementById('modalImagePreview');
+            if (modalImage) {
+              // We need to create a new blob URL for the modal as the original might have been revoked
+              // or use the file directly if it's still accessible via selectedFilesDataTransfer
+              const originalFile = selectedFilesDataTransfer.files[i]; // 'i' from the outer loop
+              if (originalFile) {
+                  modalImage.src = URL.createObjectURL(originalFile);
+                  // It's good practice to revoke this new URL when the modal is closed
+                  const previewModal = new bootstrap.Modal(document.getElementById('imagePreviewModal'));
+                  document.getElementById('imagePreviewModal').addEventListener('hidden.bs.modal', function onModalHide() {
+                      URL.revokeObjectURL(modalImage.src);
+                      document.getElementById('imagePreviewModal').removeEventListener('hidden.bs.modal', onModalHide); // Clean up listener
+                  }, { once: true });
+                  previewModal.show();
+              }
+            }
+          });
+
+          const deleteButton = document.createElement('button');
+          deleteButton.innerHTML = '<i class="bi bi-trash-fill"></i>'; // Bootstrap trash icon
+          deleteButton.type = 'button'; // Prevent form submission
+          deleteButton.classList.add('btn', 'btn-danger', 'btn-sm'); // Bootstrap classes
+          deleteButton.style.position = 'absolute';
+          deleteButton.style.top = '-8px'; // Adjust position to be slightly outside/on top of the preview
+          deleteButton.style.right = '-8px';
+          deleteButton.style.borderRadius = '50%'; // Make it circular
+          deleteButton.style.width = '25px'; // Adjust size
+          deleteButton.style.height = '25px';
+          deleteButton.style.lineHeight = '1'; // For better icon centering
+          deleteButton.style.padding = '0'; // Remove default padding
+          deleteButton.style.display = 'flex';
+          deleteButton.style.alignItems = 'center';
+          deleteButton.style.justifyContent = 'center';
+          deleteButton.style.fontSize = '12px'; // Adjust icon size if needed
+          deleteButton.style.cursor = 'pointer';
+
+          deleteButton.addEventListener('click', function() {
+            // Create a new DataTransfer object without the deleted file
+            const newFilesList = new DataTransfer();
+            for (let j = 0; j < selectedFilesDataTransfer.files.length; j++) {
+              if (i !== j) { // Don't add the file to be deleted
+                newFilesList.items.add(selectedFilesDataTransfer.files[j]);
+              }
+            }
+            selectedFilesDataTransfer = newFilesList;
+            initialPhotosInput.files = selectedFilesDataTransfer.files; // Update the actual input
+            renderImagePreviews(); // Re-render previews
+          });
+
+          previewWrapper.appendChild(img);
+          previewWrapper.appendChild(deleteButton);
+          imagePreviewContainer.appendChild(previewWrapper);
+        }
+      }
+    }
+  }
   </script>
 {% endblock %}
