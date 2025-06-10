@@ -73,14 +73,14 @@ Staf Quality Assurance (QA), Staf Produksi, Manajer terkait, dan personel lain y
 
 ### 1. Input Isu Awal:
 - User membuka form "New CAPA".
-- User mengisi: Customer, CAPA Issue Date, Issue Description, Item Involved.
+- User mengisi: Customer, CAPA Issue Date, Issue Description, Part Number.
 - User mengunggah Photo issue (foto awal).
 - User Submit -> Data disimpan ke tabel capa_issues dengan status 'Open' atau 'RCA Pending'.
 
 ### 2. AI Rekomendasi Root Cause (5 Why):
 - Setelah form awal disubmit, aplikasi memicu panggilan ke Gemini API.
 - Input ke AI: Deskripsi isu, item, mungkin konteks dari isu serupa sebelumnya (ambil dari DB).
-- Prompt Contoh (untuk AI): "Anda adalah asisten QA di pabrik packaging. Berdasarkan deskripsi isu berikut: '[Issue Description]', item: '[Item Involved]', dan mempertimbangkan histori CAPA sebelumnya [opsional: ringkasan N kasus serupa dari DB], lakukan analisis 5 Why untuk menemukan akar masalahnya. Sajikan dalam format terstruktur (Why 1, Why 2, ..., Why 5/Root Cause)."
+- Prompt Contoh (untuk AI): "Anda adalah asisten QA di pabrik packaging. Berdasarkan deskripsi isu berikut: '[Issue Description]', item: '[Part Number]', dan mempertimbangkan histori CAPA sebelumnya [opsional: ringkasan N kasus serupa dari DB], lakukan analisis 5 Why untuk menemukan akar masalahnya. Sajikan dalam format terstruktur (Why 1, Why 2, ..., Why 5/Root Cause)."
 - Aplikasi menampilkan hasil 5 Why dari AI kepada user.
 
 ### 3. User Adjustment & Submit Root Cause:

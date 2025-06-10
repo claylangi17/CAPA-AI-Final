@@ -134,6 +134,7 @@ def trigger_rca_analysis(capa_id):
     }}
     """
 
+    processed_knowledge_count = 0
     # Add knowledge from previous relevant RCAs if available
     if relevant_knowledge:
         prompt += """
@@ -148,7 +149,6 @@ def trigger_rca_analysis(capa_id):
     Anda HARUS menggunakan referensi ini sebagai dasar utama analisis Anda - bukan hanya sebagai tambahan.
     Adaptasikan referensi ini untuk kasus yang sedang dianalisis, JANGAN menciptakan analisis baru dari awal:
     """
-        processed_knowledge_count = 0
         for i, knowledge_item in enumerate(relevant_knowledge, 1):
             try:
                 adjusted_whys_json_str = knowledge_item.get('adjusted_whys')

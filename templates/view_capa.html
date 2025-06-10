@@ -258,10 +258,10 @@
             <dt class="col-sm-3">Item Terkait:</dt>
             <dd class="col-sm-9">{{ issue.item_involved }}</dd>
 
-            <dt class="col-sm-3">Nama Mesin:</dt>
+            <dt class="col-sm-3">Nama Process:</dt>
             <dd class="col-sm-9">{{ issue.machine_name or 'Tidak Ada' }}</dd>
 
-            <dt class="col-sm-3">Batch number/ SPK:</dt>
+            <dt class="col-sm-3">Batch number/ SPK/ PO Number:</dt>
             <dd class="col-sm-9">{{ issue.batch_number or 'Tidak Ada' }}</dd>
 
             <dt class="col-sm-3">Tanggal Masalah:</dt>
@@ -448,7 +448,7 @@
                                             <strong>Deskripsi:</strong> {{ example.description }}
                                         </div>
                                         <div class="mb-3">
-                                            <strong>Mesin:</strong> {{ example.machine }}
+                                            <strong>Process:</strong> {{ example.machine }}
                                         </div>
                                         <div class="mb-2">
                                             <strong>Analisis 5 Why:</strong>
@@ -690,7 +690,7 @@
             {% else %}
             <div class="card mb-3">
                 <div class="card-header bg-primary text-white">
-                    <strong>Tindakan Sementara</strong>
+                    <strong>Tindakan Sementara / Korektif</strong>
                 </div>
                 <div class="card-body">
                     {% set temp_actions = ap_data.get('temporary_action', []) %}
@@ -721,7 +721,7 @@
 
             <div class="card">
                 <div class="card-header bg-success text-white">
-                    <strong>Tindakan Pencegahan</strong>
+                    <strong>Tindakan Pencegahan/ Koreksi</strong>
                 </div>
                 <div class="card-body">
                     {% set prev_actions = ap_data.get('preventive_action', []) %}
@@ -766,10 +766,10 @@
         <input type="hidden" id="due_date" name="due_date"
             value="{{ issue.action_plan.due_date.strftime('%Y-%m-%d') if issue.action_plan.due_date else '' }}">
 
-        <!-- Form Tindakan Sementara (Tabulasi Dinamis) -->
+        <!-- Form Tindakan Sementara / Korektif (Tabulasi Dinamis) -->
         <div class="card mb-4">
             <div class="card-header bg-primary text-white">
-                <strong>Tindakan Sementara</strong>
+                <strong>Tindakan Sementara / Korektif</strong>
             </div>
             <div class="card-body">
                 <div id="temp-actions-container">
@@ -836,10 +836,10 @@
             </div>
         </div>
 
-        <!-- Form Tindakan Pencegahan (Tabulasi Dinamis) -->
+        <!-- Form Tindakan Pencegahan/ Koreksi (Tabulasi Dinamis) -->
         <div class="card mb-4">
             <div class="card-header bg-success text-white">
-                <strong>Tindakan Pencegahan</strong>
+                <strong>Tindakan Pencegahan/ Koreksi</strong>
             </div>
             <div class="card-body">
                 <div id="prev-actions-container">
@@ -987,12 +987,12 @@
             dilaksanakan dan ingin dibuktikan.</p>
     </div>
 
-    <!-- Navigasi tab untuk Tindakan Sementara dan Pencegahan -->
+    <!-- Navigasi tab untuk Tindakan Sementara / Korektif dan Pencegahan -->
     <ul class="nav nav-tabs mb-3" id="evidence-tabs" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="temp-actions-tab" data-bs-toggle="tab"
                 data-bs-target="#temp-actions-evidence" type="button" role="tab" aria-controls="temp-actions-evidence"
-                aria-selected="true">Tindakan Sementara</button>
+                aria-selected="true">Tindakan Sementara / Korektif</button>
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="prev-actions-tab" data-bs-toggle="tab" data-bs-target="#prev-actions-evidence"
@@ -1003,7 +1003,7 @@
 
     <!-- Konten Tab -->
     <div class="tab-content" id="evidence-tabs-content">
-        <!-- Tab Tindakan Sementara -->
+        <!-- Tab Tindakan Sementara / Korektif -->
         <div class="tab-pane fade show active" id="temp-actions-evidence" role="tabpanel"
             aria-labelledby="temp-actions-tab">
             {% if adjusted_actions.temp_actions|length > 0 %}
@@ -1103,7 +1103,7 @@
             {% endif %}
         </div>
 
-        <!-- Tab Tindakan Pencegahan -->
+        <!-- Tab Tindakan Pencegahan/ Koreksi -->
         <div class="tab-pane fade" id="prev-actions-evidence" role="tabpanel" aria-labelledby="prev-actions-tab">
             {% if adjusted_actions.prev_actions|length > 0 %}
             <div class="accordion mb-3" id="prev-actions-accordion">
@@ -1222,7 +1222,7 @@
             <li class="nav-item" role="presentation">
                 <button class="nav-link active" id="temp-evidence-tab" data-bs-toggle="tab"
                     data-bs-target="#temp-evidence" type="button" role="tab" aria-controls="temp-evidence"
-                    aria-selected="true">Tindakan Sementara</button>
+                    aria-selected="true">Tindakan Sementara / Korektif</button>
             </li>
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="prev-evidence-tab" data-bs-toggle="tab" data-bs-target="#prev-evidence"

@@ -21,17 +21,17 @@
       <input type="hidden" id="customer_name" name="customer_name" required>
     </div>
     <div class="mb-3">
-      <label for="item_involved" class="form-label required-field">Item Involved</label>
+      <label for="item_involved" class="form-label required-field">Part Number</label>
       <input type="text" class="form-control" id="item_involved" name="item_involved" required>
     </div>
     <div class="mb-3">
-      <label for="machine_name" class="form-label required-field">Machine Name</label>
+      <label for="machine_name" class="form-label required-field">Process Name</label>
       <select class="form-control" id="machine_name_select" name="machine_name_select"></select>
       <input type="text" class="form-control mt-2" id="machine_name_other" name="machine_name_other" placeholder="Enter machine name if not in list" style="display: none;">
       <input type="hidden" id="machine_name" name="machine_name" required> 
     </div>
     <div class="mb-3">
-      <label for="batch_number" class="form-label">Batch number/ SPK</label>
+      <label for="batch_number" class="form-label">Batch number/ SPK/ PO Number</label>
       <input type="text" class="form-control" id="batch_number" name="batch_number" placeholder="Enter the batch number or SPK">
     </div>
      <div class="mb-3">
@@ -122,7 +122,7 @@
 
               // Validate that finalMachineNameInput has a value
               if (!finalMachineNameInput.value) {
-                  alert('Machine Name harus dipilih atau diisi.');
+                  alert('Process Name harus dipilih atau diisi.');
                   event.preventDefault();
                   if (uploadIndicator) uploadIndicator.style.display = 'none';
                   if (submitButton) {

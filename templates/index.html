@@ -65,42 +65,58 @@
     </div>
   </div>
 
+  <!-- Search Bar -->
+  <div class="row mb-4">
+    <div class="col-md-12">
+      <form method="GET" action="{{ url_for('index') }}">
+        <div class="input-group">
+          <input type="text" name="search_query" class="form-control" placeholder="Cari CAPA..." value="{{ request.args.get('search_query', '') }}">
+          <select name="search_by" class="form-select" style="max-width: 200px;">
+            <option value="capa_id" {% if request.args.get('search_by') == 'capa_id' %}selected{% endif %}>CAPA ID</option>
+            <option value="part_number" {% if request.args.get('search_by') == 'part_number' %}selected{% endif %}>Part Number</option>
+            <option value="issue_description" {% if request.args.get('search_by') == 'issue_description' %}selected{% endif %}>Deskripsi Masalah</option>
+          </select>
+          <button class="btn btn-primary" type="submit"><i class="fas fa-search me-1"></i> Cari</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <h2 class="mb-3"><i class="fas fa-clipboard-list me-2"></i>Masalah CAPA</h2>
   
   {% if issues %}
     <div class="row row-cols-1 row-cols-md-2 g-4">
       {% for issue in issues %}
         <div class="col">
-          <div class="card h-100">
-            <div class="card-header d-flex justify-content-between align-items-center">
-              <span>CAPA #{{ issue.capa_id }}</span>
+          <div class="card h-100 shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center py-2" style="background-color: #f8f9fa;">
+              <span class="fw-bold">CAPA #{{ issue.capa_id }}</span>
               {% if issue.status == 'Open' %}
-                <span class="badge status-badge status-open">{{ issue.status }}</span>
+                <span class="badge bg-warning text-dark px-3 py-2">{{ issue.status }}</span>
               {% elif issue.status == 'Closed' %}
-                <span class="badge status-badge status-closed">{{ issue.status }}</span>
+                <span class="badge bg-success text-white px-3 py-2">{{ issue.status }}</span>
               {% else %}
-                <span class="badge bg-info text-white status-badge">{{ issue.status }}</span>
+                <span class="badge bg-info text-white px-3 py-2">{{ issue.status }}</span>
               {% endif %}
             </div>
             <div class="card-body">
-              <h5 class="card-title">{{ issue.customer_name }}</h5>
-              <h6 class="card-subtitle mb-2 text-muted">Item: {{ issue.item_involved }}</h6>
-              <p class="card-text">
-                <small class="text-muted">
-                  <i class="fas fa-cog me-1"></i> Mesin: {{ issue.machine_name or 'Tidak Ada' }}<br>
-                  <i class="fas fa-barcode me-1"></i> Batch number/ SPK: {{ issue.batch_number or 'Tidak Ada' }}<br>
-                  <i class="far fa-calendar-alt me-1"></i> Issue Date: {{ issue.issue_date.strftime('%Y-%m-%d') }}<br>
-                  <i class="far fa-clock me-1"></i> Submitted: {{ issue.submission_timestamp.strftime('%Y-%m-%d %H:%M') }}<br>
-                  {% if issue.creator %}
-                  <i class="far fa-user me-1"></i> Dibuat Oleh: {{ issue.creator.username }}
-                  {% endif %}
-                </small>
-              </p>
-              <div class="text-end mt-3">
+              <p class="card-text small mb-3">{{ issue.issue_description or 'Tidak ada deskripsi.' }}</p>
+              <p class="card-text small mb-1"><i class="fas fa-user me-1"></i> Customer: {{ issue.customer_name }}</p>
+              <p class="card-text small mb-1"><i class="fas fa-box me-1"></i> Item: {{ issue.item_involved }}</p>
+              <div class="mt-2 mb-3">
+                <p class="card-text small mb-1"><i class="fas fa-cog me-1"></i> Process: {{ issue.machine_name or 'Tidak Ada' }}</p>
+                <p class="card-text small mb-1"><i class="fas fa-barcode me-1"></i> Batch number/ SPK/ PO Number: {{ issue.batch_number or 'Tidak Ada' }}</p>
+                <p class="card-text small mb-1"><i class="far fa-calendar-alt me-1"></i> Issue Date: {{ issue.issue_date.strftime('%Y-%m-%d') }}</p>
+                <p class="card-text small mb-1"><i class="far fa-clock me-1"></i> Submitted: {{ issue.submission_timestamp.strftime('%Y-%m-%d %H:%M') }}</p>
+                {% if issue.creator %}
+                <p class="card-text small mb-1"><i class="far fa-user me-1"></i> Dibuat Oleh: {{ issue.creator.username }}</p>
+                {% endif %}
+              </div>
+              <div class="d-flex justify-content-end mt-3">
                 {% if current_user.role == 'super_admin' %}
-                <form action="{{ url_for('soft_delete_capa', capa_id=issue.capa_id) }}" method="POST" style="display: inline-block; margin-right: 5px;">
+                <form action="{{ url_for('soft_delete_capa', capa_id=issue.capa_id) }}" method="POST" class="me-2">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Apakah Anda yakin ingin menghapus CAPA ini? Tindakan ini tidak dapat diurungkan secara langsung.');">
+                    <button type="submit" class="btn btn-danger" onclick="return confirm('Apakah Anda yakin ingin menghapus CAPA ini? Tindakan ini tidak dapat diurungkan secara langsung.');">
                         <i class="fas fa-trash-alt me-1"></i> Hapus
                     </button>
                 </form>
