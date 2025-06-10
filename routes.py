@@ -552,7 +552,7 @@ def register_routes(app):
     @login_required
     def index():
         s_company_id = session.get('selected_company_id')
-        query = CapaIssue.query.filter(CapaIssue.is_deleted == False)
+        issues_query = CapaIssue.query.filter(CapaIssue.is_deleted == False)
 
         if current_user.role == 'super_admin' and s_company_id == 'all':
             # Super admin viewing all companies, no company filter
@@ -560,16 +560,16 @@ def register_routes(app):
         elif s_company_id is not None and s_company_id != 'all':
             try:
                 company_id_int = int(s_company_id)
-                query = query.filter(CapaIssue.company_id == company_id_int)
+                issues_query = issues_query.filter(CapaIssue.company_id == company_id_int)
             except ValueError:
                 flash("Invalid company selection in session. Displaying no issues.", "danger")
                 app.logger.error(f"Invalid company_id '{s_company_id}' in session for user {current_user.username}.")
-                query = query.filter(CapaIssue.company_id == -1) # Effectively no results
+                issues_query = issues_query.filter(CapaIssue.company_id == -1) # Effectively no results
         elif current_user.role != 'super_admin' and s_company_id is None:
             # Regular user with no company_id in session (should be set at login)
             flash("Your company context is not set. Please re-login or contact support.", "warning")
             app.logger.warning(f"User {current_user.username} (role: {current_user.role}) has no selected_company_id in session.")
-            query = query.filter(CapaIssue.company_id == -1) # Effectively no results
+            issues_query = issues_query.filter(CapaIssue.company_id == -1) # Effectively no results
         elif current_user.role == 'super_admin' and s_company_id is None:
             # Super admin with no company_id in session (should be 'all' or a specific ID)
             flash("Company context not fully initialized for admin. Defaulting to all companies view. Please re-select if needed.", "info")
@@ -579,11 +579,40 @@ def register_routes(app):
         else:
             # Fallback for any other unexpected state
             app.logger.error(f"Unexpected company session state for user {current_user.username}, role {current_user.role}, session company ID {s_company_id}. Displaying no issues.")
-            query = query.filter(CapaIssue.company_id == -1) # Effectively no results
+            issues_query = issues_query.filter(CapaIssue.company_id == -1) # Effectively no results
 
-        issues = query.options(db.joinedload(CapaIssue.creator)).order_by(CapaIssue.submission_timestamp.desc()).all()
-        return render_template('index.html', issues=issues)
+        # Handle search
+        search_query_term = request.args.get('search_query')
+        search_by = request.args.get('search_by')
+        
+        current_app.logger.info(f"Index route: search_query='{search_query_term}', search_by='{search_by}', company_filter_applied_query='{str(issues_query)}'")
 
+        if search_query_term:
+            current_app.logger.info(f"Applying search filter for '{search_by}' with term '{search_query_term}'.")
+            if search_by == 'capa_id':
+                issues_query = issues_query.filter(CapaIssue.capa_id.ilike(f'%{search_query_term}%'))
+            elif search_by == 'part_number': # Assuming 'item_involved' is used for Part Number
+                issues_query = issues_query.filter(CapaIssue.item_involved.ilike(f'%{search_query_term}%'))
+            elif search_by == 'issue_description':
+                issues_query = issues_query.filter(CapaIssue.issue_description.ilike(f'%{search_query_term}%'))
+            else:
+                current_app.logger.warning(f"Unknown search_by criteria: '{search_by}'")
+            current_app.logger.info(f"Query after applying search filter: {str(issues_query)}")
+        else:
+            current_app.logger.info("No search query term provided, skipping search filtering.")
+
+        # Sort issues: 'Open' first, then by submission_timestamp descending
+        issues = issues_query.order_by(
+            db.case(
+                (CapaIssue.status == 'Open', 0),
+                (CapaIssue.status == 'Evidence Pending', 1),
+                (CapaIssue.status == 'Closed', 2),
+                else_=3  # Other statuses
+            ),
+            CapaIssue.submission_timestamp.desc()
+        ).all()
+
+        return render_template('index.html', issues=issues, csrf_form=CSRFOnlyForm())
 
     @app.route('/capa/<int:capa_id>/soft_delete', methods=['POST'])
     @login_required
