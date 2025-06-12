@@ -598,16 +598,8 @@ def register_routes(app):
         else:
             current_app.logger.info("No search query term provided, skipping search filtering.")
 
-        # Sort issues: 'Open' first, then by submission_timestamp descending
-        issues = issues_query.order_by(
-            db.case(
-                (CapaIssue.status == 'Open', 0),
-                (CapaIssue.status == 'Evidence Pending', 1),
-                (CapaIssue.status == 'Closed', 2),
-                else_=3  # Other statuses
-            ),
-            CapaIssue.submission_timestamp.desc()
-        ).all()
+        # Sort issues by CAPA ID descending so the newest CAPA appears first
+        issues = issues_query.order_by(CapaIssue.capa_id.desc()).all()
 
         return render_template('index.html', issues=issues, csrf_form=CSRFOnlyForm())
 
