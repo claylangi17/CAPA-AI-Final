@@ -14,7 +14,7 @@ else:
     genai.configure(api_key=GOOGLE_API_KEY)
 
 # Select the model (adjust if needed, check Gemini documentation for available models)
-gemini_model = genai.GenerativeModel('models/gemini-2.5-flash-preview-04-17')
+gemini_model = genai.GenerativeModel('models/gemini-2.5-flash-preview-05-20')
 
 
 def _parse_action_list(json_str, capa_id_str, action_type_name):
